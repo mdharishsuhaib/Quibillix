@@ -146,6 +146,18 @@ export default function AuditApp() {
               {s.label}
             </button>
           ))}
+          <button
+            onClick={async () => {
+              const blob = await (await fetch("/samples/india-hospital-bill.png")).blob();
+              await onFile(new File([blob], "india-hospital-bill.png", { type: "image/png" }));
+              setContext(SAMPLES.find((x) => x.id === "in-hospital")!.context);
+            }}
+            disabled={running}
+            className="rounded-full border border-dashed border-emerald-400 px-3 py-1 text-sm text-emerald-700 hover:bg-emerald-50"
+            title="Tests the vision path (Nemotron 3.5 Super VL)"
+          >
+            📷 Photo of a bill
+          </button>
         </div>
 
         <div className="grid gap-4 md:grid-cols-[1fr_320px]">

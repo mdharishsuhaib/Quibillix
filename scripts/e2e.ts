@@ -9,9 +9,13 @@ for (const line of fs.readFileSync(".env.local", "utf8").split(/\r?\n/)) {
 async function main() {
   const { runAudit } = await import("../src/lib/pipeline");
   const { SAMPLES } = await import("../src/lib/samples");
-  const s = SAMPLES.find((x) => x.id === (process.argv[2] || "us-er"))!;
+  const arg = process.argv[2] || "us-er";
+  const s = SAMPLES.find((x) => x.id === arg) ?? SAMPLES.find((x) => x.id === "in-hospital")!;
+  const input = /\.(png|jpe?g|webp)$/i.test(arg)
+    ? { imageDataUrl: `data:image/${arg.split(".").pop()!.replace("jpg", "jpeg")};base64,${fs.readFileSync(arg).toString("base64")}`, context: s.context }
+    : { text: s.text, context: s.context };
   const t0 = Date.now();
-  const result = await runAudit({ text: s.text, context: s.context }, (e) => {
+  const result = await runAudit(input, (e) => {
     if (e.type === "step") console.log(`[${e.step}] ${e.status} ${e.model ?? ""} ${e.ms ? (e.ms / 1000).toFixed(1) + "s" : ""} ${e.detail ?? ""}`);
     if (e.type === "bill") console.log(`  parsed ${e.bill.lineItems.length} lines, ${e.bill.currency}, subtotal ${e.bill.statedSubtotal}, due ${e.bill.statedTotalDue}`);
   });
