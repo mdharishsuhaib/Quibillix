@@ -1,6 +1,6 @@
 /**
  * Thin client for Nebius Token Factory (OpenAI-compatible Chat Completions API).
- * Fairbill routes each step of its pipeline to the cheapest NVIDIA Nemotron model
+ * Quibbill routes each step of its pipeline to the cheapest NVIDIA Nemotron model
  * that can do the job well:
  *   - vision : Nemotron 3.5 Super VL  -> read photos / screenshots of bills
  *   - fast   : Nemotron 3 Nano        -> structured extraction from text

@@ -106,7 +106,7 @@ export function LetterPanel({ result }: { result: AuditResult }) {
     const blob = new Blob([letter], { type: "text/plain" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `fairbill-dispute-${(result.bill.provider || "bill").replace(/\W+/g, "-").toLowerCase()}.txt`;
+    a.download = `quibbill-dispute-${(result.bill.provider || "bill").replace(/\W+/g, "-").toLowerCase()}.txt`;
     a.click();
   };
 

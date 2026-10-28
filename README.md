@@ -1,6 +1,8 @@
-# Fairbill — a second opinion for every bill
+# Quibbill: quibble with your bill
 
-**Fairbill finds overcharges in medical, hospital, telecom and utility bills and writes the dispute for you.** Upload a photo or paste a bill. A pipeline of NVIDIA Nemotron agents running on **Nebius Token Factory** reads each line, runs hard math checks, looks up live fair-price benchmarks and consumer-protection rules with **Tavily**, audits the bill for upcoding, unbundling, duplicates and balance billing, and drafts a dispute letter and phone script you can send right away.
+*Quibbill* (quibble + bill) is a second opinion for every bill.
+
+**Quibbill finds overcharges in medical, hospital, telecom and utility bills and writes the dispute for you.** Upload a photo or paste a bill. A pipeline of NVIDIA Nemotron agents running on **Nebius Token Factory** reads each line, runs hard math checks, looks up live fair-price benchmarks and consumer-protection rules with **Tavily**, audits the bill for upcoding, unbundling, duplicates and balance billing, and drafts a dispute letter and phone script you can send right away.
 
 - **Live demo:** `<your-vercel-url>`
 - **Demo video:** `<your-youtube-url>`
@@ -9,7 +11,7 @@
 
 ## Why
 
-Billing errors are common, but few people have the time or know-how to fight them. Itemized hospital bills use codes like `99285` and `0450` that most patients can't read, and an Explanation of Benefits rarely makes the problem clear. Most people just pay, and this hits hardest for people without a billing advocate, a lawyer or the spare hours to research fair prices. In India, families paying cashless-claim balances get bills full of "consumables", "service charges" and GST lines that they can't check. Fairbill acts as that billing advocate, and it costs a few cents in tokens per bill.
+Billing errors are common, but few people have the time or know-how to fight them. Itemized hospital bills use codes like `99285` and `0450` that most patients can't read, and an Explanation of Benefits rarely makes the problem clear. Most people just pay, and this hits hardest for people without a billing advocate, a lawyer or the spare hours to research fair prices. In India, families paying cashless-claim balances get bills full of "consumables", "service charges" and GST lines that they can't check. Quibbill acts as that billing advocate, and it costs a few cents in tokens per bill.
 
 ## What it does
 
@@ -46,8 +48,8 @@ Token Factory helped in several ways:
 Requirements: Node.js 20+ and a Nebius Token Factory API key. A Tavily key is optional but recommended.
 
 ```bash
-git clone <this-repo-url> fairbill
-cd fairbill
+git clone <this-repo-url> quibbill
+cd quibbill
 npm install
 cp .env.example .env.local      # then fill in NEBIUS_API_KEY and TAVILY_API_KEY
 npm run check-models            # verifies the Nemotron model IDs on your account
@@ -92,4 +94,4 @@ See [`SUBMISSION.md`](./SUBMISSION.md#feedback).
 
 ## Disclaimer
 
-Fairbill gives informational analysis, not legal, medical or financial advice. Check its findings with your provider or insurer.
+Quibbill gives informational analysis, not legal, medical or financial advice. Check its findings with your provider or insurer.

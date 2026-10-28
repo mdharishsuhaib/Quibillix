@@ -1,9 +1,11 @@
-# Devpost submission kit: Fairbill
+# Devpost submission kit: Quibbill
 
 > Copy each section into the matching Devpost field. Fill in everything marked **TODO** yourself. The feedback section especially has to describe your own real experience to count.
 
 ## Project name
-Fairbill: a second opinion for every bill
+Quibbill: quibble with your bill
+
+*(Name = "quibble" + "bill": every line on your bill deserves a second look.)*
 
 ## Tagline (≤ 200 chars)
 Snap a photo of a medical, hospital or phone bill. Nemotron agents on Nebius find the overcharges, cite the rule, and write your dispute letter.
@@ -25,7 +27,7 @@ nvidia-nemotron, nebius-token-factory, tavily, next.js, react, typescript, tailw
 Billing errors are common, and the people who can least afford them are the ones who pay them anyway. Itemized bills come in a language patients don't speak (CPT codes, revenue codes, "consumables", "service charge 10%"). Fighting them takes hours of research that most people don't have. Hospitals and carriers have billing departments; patients have nobody. We wanted to give everyone a billing advocate for the price of a few API calls.
 
 ## What it does
-Fairbill takes a photo, a screenshot or pasted text of a bill, plus an optional sentence about what actually happened. It returns:
+Quibbill takes a photo, a screenshot or pasted text of a bill, plus an optional sentence about what actually happened. It returns:
 - **The amount you can credibly dispute**, broken down by issue: duplicates, math errors, price outliers, upcoding, unbundling, balance billing, junk fees and items never received.
 - **Evidence:** each AI finding cites the live web sources it relied on (fee schedules, laws, regulator rules).
 - **A ready-to-send dispute letter** (editable, downloadable) and a **phone script** for calling the billing office.
@@ -33,7 +35,7 @@ Fairbill takes a photo, a screenshot or pasted text of a bill, plus an optional 
 It works across countries and currencies. The samples include a US ER bill, an Indian private-hospital bill in INR and a US telecom bill.
 
 ## How we built it
-Fairbill is a six-step agent pipeline that streams each step to the UI as it runs. Each step goes to the right-sized NVIDIA Nemotron model on Nebius Token Factory:
+Quibbill is a six-step agent pipeline that streams each step to the UI as it runs. Each step goes to the right-sized NVIDIA Nemotron model on Nebius Token Factory:
 1. **Extract:** Nemotron 3.5 Super VL reads photos of bills, and Nemotron 3 Nano parses pasted text into structured JSON.
 2. **Hard checks:** deterministic TypeScript checks for math, duplicates, totals and fees. These never hallucinate, and the audit receives them as given facts.
 3. **Plan:** Nemotron 3 Super picks the charges most likely to be wrong and writes targeted search queries.
@@ -57,7 +59,7 @@ Token Factory's OpenAI-compatible API let us route by tier and add an automatic 
 ## What we learned
 **TODO:** write this in your own words (e.g. which Nemotron model surprised you, and what model routing did to cost and latency).
 
-## What's next for Fairbill
+## What's next for Quibbill
 - PDF upload and multi-page EOB + itemized-bill reconciliation
 - Insurer-specific appeal templates and deadline tracking
 - Running background follow-ups as Nebius Serverless Jobs (e.g. re-checking a corrected bill)
@@ -91,12 +93,12 @@ Token Factory's OpenAI-compatible API let us route by tier and add an automatic 
 | Time | Show | Say |
 | --- | --- | --- |
 | 0:00–0:15 | Real-looking ER bill, $6,447 | "This is a $6,447 ER bill for a sprained ankle. Most people just pay it. Watch what happens." |
-| 0:15–0:35 | Click sample → **Audit my bill**; pipeline lights up | "Fairbill sends it through a team of NVIDIA Nemotron agents on Nebius Token Factory." |
+| 0:15–0:35 | Click sample → **Audit my bill**; pipeline lights up | "Quibbill sends it through a team of NVIDIA Nemotron agents on Nebius Token Factory." |
 | 0:35–1:05 | Green banner with the disputable $, findings list | "Duplicate X-ray. Supplies that don't add up. A level-5 ER code for a sprain. Surprise out-of-network billing. Each finding cites its source." |
 | 1:05–1:30 | Letter tab → phone script → download | "It writes the dispute letter and the script for calling billing. Done in under a minute." |
 | 1:30–2:00 | Upload a **phone photo** of a bill (Indian hospital sample, printed) | "It reads photos with Nemotron Super VL, in any currency. Here it flags an ICU charge on a patient who was never in the ICU, plus a 10% service charge." |
 | 2:00–2:40 | Pipeline sidebar showing model names/timings; quick view of `llm.ts` routing table | "Every step runs on the right-sized Nemotron: Nano for extraction, Super for planning and writing, Ultra for the deep audit, and Tavily for live research. All through one Token Factory API, with automatic fallbacks." |
-| 2:40–3:00 | Back to the banner | "Billing errors cost people money every day. Fairbill gives everyone a billing advocate. Try it at [URL]." |
+| 2:40–3:00 | Back to the banner | "Billing errors cost people money every day. Quibbill gives everyone a billing advocate. Try it at [URL]." |
 
 Recording tips: use 1080p, zoom the browser to 110–125%, and do one dry run first so the Ultra step isn't cold. Use no copyrighted music (YouTube Audio Library is safe). Set the video to **Public**.
 

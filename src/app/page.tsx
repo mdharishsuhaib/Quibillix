@@ -6,8 +6,8 @@ export default function Home() {
       <header className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <span className="grid h-9 w-9 place-items-center rounded-lg bg-emerald-600 text-lg font-bold text-white">F</span>
-            <h1 className="text-2xl font-bold tracking-tight">Fairbill</h1>
+            <span className="grid h-9 w-9 place-items-center rounded-lg bg-emerald-600 text-lg font-bold text-white">Q</span>
+            <h1 className="text-2xl font-bold tracking-tight">Quibbill</h1>
           </div>
           <p className="mt-2 max-w-2xl text-slate-600">
             Upload a medical, hospital, telecom or utility bill. A team of NVIDIA Nemotron agents reads every line, checks
@@ -20,7 +20,7 @@ export default function Home() {
       </header>
       <AuditApp />
       <footer className="mt-16 border-t pt-6 text-xs text-slate-500">
-        Fairbill isn&apos;t legal or medical advice. Always verify findings with your provider or insurer. Bills you upload
+        Quibbill isn&apos;t legal or medical advice. Always verify findings with your provider or insurer. Bills you upload
         are processed in memory and never stored.
       </footer>
     </main>

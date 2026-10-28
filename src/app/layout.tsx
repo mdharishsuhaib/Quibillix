@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Fairbill — AI bill auditor & dispute agent",
+  title: "Quibbill — quibble with your bill. AI overcharge auditor & dispute agent",
   description:
     "Find overcharges in medical, hospital, telecom and utility bills and get a ready-to-send dispute letter. Powered by NVIDIA Nemotron on Nebius Token Factory.",
 };
