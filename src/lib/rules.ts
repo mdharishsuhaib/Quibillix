@@ -8,7 +8,7 @@ const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
  * passed into) the Nemotron Ultra audit as hard facts.
  */
 export function runRules(bill: ParsedBill): Finding[] {
-  const findings: Finding[] = [];
+  const findings: Omit<Finding, "certainty">[] = [];
   const items = bill.lineItems;
   let n = 0;
   const id = () => `R${++n}`;
@@ -132,6 +132,27 @@ export function runRules(bill: ParsedBill): Finding[] {
     }
   }
 
+  // 6b. Daily charges (standing charge, per-day rental) billed for more days than the billing period
+  const periodDays = inclusiveDays(bill.periodStart, bill.periodEnd);
+  if (periodDays != null) {
+    for (const li of items) {
+      if (/standing\s*charge|\(days?\)|per\s*day|daily/i.test(li.description) && li.quantity > periodDays && li.quantity <= periodDays + 5) {
+        const unit = li.unitPrice ?? li.amount / li.quantity;
+        findings.push({
+          id: id(),
+          kind: "math_error",
+          title: `Charged for ${li.quantity} days in a ${periodDays}-day billing period`,
+          lineItemIds: [li.id],
+          explanation: `The billing period ${bill.periodStart} – ${bill.periodEnd} has ${periodDays} days, but "${li.description}" is charged for ${li.quantity}.`,
+          estimatedOvercharge: round(unit * (li.quantity - periodDays)),
+          confidence: "high",
+          source: "rule",
+          citations: [],
+        });
+      }
+    }
+  }
+
   // 7. Tax on healthcare services (exempt in most countries, e.g. GST-exempt in India)
   if (bill.billType === "medical" && bill.statedTaxes && bill.statedTaxes > 0) {
     // India: non-ICU rooms above ₹5,000/day legitimately attract 5% GST; everything else clinical is exempt.
@@ -162,7 +183,19 @@ export function runRules(bill: ParsedBill): Finding[] {
     });
   }
 
-  return findings;
+  // Arithmetic is provable from the bill itself → confirmed. Everything else is a well-founded suspicion.
+  return findings.map((f) => ({
+    ...f,
+    certainty: f.kind === "math_error" && f.confidence === "high" ? "confirmed" : "suspected",
+  }));
+}
+
+function inclusiveDays(start?: string, end?: string): number | null {
+  if (!start || !end) return null;
+  const a = Date.parse(start);
+  const b = Date.parse(end);
+  if (isNaN(a) || isNaN(b) || b < a) return null;
+  return Math.round((b - a) / 86_400_000) + 1;
 }
 
 function stayNights(bill: ParsedBill): number | null {

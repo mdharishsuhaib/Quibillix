@@ -62,6 +62,8 @@ Return ONLY a JSON object with this exact shape:
   "statementDate": string | null,
   "admissionDate": string | null,    // inpatient stays only, ISO yyyy-mm-dd
   "dischargeDate": string | null,    // inpatient stays only, ISO yyyy-mm-dd
+  "periodStart": string | null,      // billing/service period start (utilities, telecom), ISO yyyy-mm-dd
+  "periodEnd": string | null,        // billing/service period end, ISO yyyy-mm-dd
   "currency": string,                // ISO code, e.g. "USD", "INR"
   "lineItems": [{ "date": string|null, "code": string|null, "description": string, "quantity": number, "unitPrice": number|null, "amount": number }],
   "statedSubtotal": number | null,   // charges before tax
@@ -105,6 +107,8 @@ function normalizeBill(raw: Record<string, unknown>): ParsedBill {
     statementDate: s(raw.statementDate),
     admissionDate: s(raw.admissionDate),
     dischargeDate: s(raw.dischargeDate),
+    periodStart: s(raw.periodStart),
+    periodEnd: s(raw.periodEnd),
     currency: s(raw.currency) || "USD",
     lineItems: items
       .map((li: Record<string, unknown>, i: number) => ({
@@ -218,7 +222,11 @@ Expert checklist — actively test every one of these against the bill:
 - Percentage surcharges stacked on top of other charges.
 - Drug and consumable prices vs. MRP / retail / ceiling prices.
 - Out-of-network or balance billing that consumer law prohibits (No Surprises Act, state laws, insurer cashless agreements).
-- Third-party add-ons and "cramming" in telecom/utility bills; fees after on-time autopay.
+- Third-party add-ons and "cramming" in telecom/utility bills; fees after on-time autopay/direct debit.
+- Utility meter readings: ESTIMATED readings vs. an actual reading the user reports (recompute usage from the actual read), and billing-period day counts.
+Output discipline:
+- Output ONLY real problems. Never output a finding to say a charge is fair, normal, or within range.
+- If nothing is wrong, return {"findings": [], "summary": "..."}; a clean bill is a valid answer.
 Rules:
 - Do NOT repeat the already-detected rule findings (they are listed for context).
 - Only flag what you can justify. Reference sources by their [number] from the evidence. Never invent URLs.
@@ -253,14 +261,18 @@ ${evidenceText}`,
       const cap = ids.length ? ids.reduce((s, x) => s + (lineAmount.get(x) || 0), 0) : Infinity;
       const kind = (ISSUE_KINDS.includes(f.kind as IssueKind) ? f.kind : "other") as IssueKind;
       const conf = (["high", "medium", "low"].includes(f.confidence || "") ? f.confidence : "low") as Finding["confidence"];
+      const amount = round(Math.max(0, Math.min(num(f.estimatedOvercharge) ?? 0, cap)));
+      // The AI never "confirms" — only arithmetic does. Zero-value or low-confidence items need more info.
+      const certainty: Finding["certainty"] = amount === 0 || conf === "low" ? "needs_info" : "suspected";
       return {
         id: `A${i + 1}`,
         kind,
         title: f.title!,
         lineItemIds: ids,
         explanation: f.explanation!,
-        estimatedOvercharge: round(Math.max(0, Math.min(num(f.estimatedOvercharge) ?? 0, cap))),
+        estimatedOvercharge: amount,
         confidence: conf,
+        certainty,
         source: "ai" as const,
         citations: (f.sources || [])
           .map((n) => sources[Number(n) - 1])
@@ -268,11 +280,18 @@ ${evidenceText}`,
           .map((r) => ({ title: r.title, url: r.url })),
       };
     });
-  return { findings, summary: data.summary || "" };
+  return { findings: dropNoise(findings), summary: data.summary || "" };
+}
+
+/** A "price outlier" with no excess isn't an issue, it's commentary. Keep zero-value items only when they request itemization/records. */
+function dropNoise(findings: Finding[]) {
+  return findings.filter(
+    (f) => f.estimatedOvercharge > 0 || (/itemi[sz]|breakdown|records|justif|clarif|verify/i.test(`${f.title} ${f.explanation}`) && f.kind !== "price_outlier"),
+  );
 }
 
 // ---------------------------------------------------------------- 6. letter
-async function writeLetter(bill: ParsedBill, findings: Finding[], totalDisputable: number, context: string | undefined, tier: Tier) {
+export async function writeLetter(bill: ParsedBill, findings: Finding[], totalDisputable: number, context: string | undefined, tier: Tier) {
   const { text } = await chat({
     tier,
     temperature: 0.4,
@@ -283,7 +302,7 @@ async function writeLetter(bill: ParsedBill, findings: Finding[], totalDisputabl
         content: `You write firm, polite, specific billing dispute letters for consumers, plus a short phone script.
 Format your reply EXACTLY as:
 ===LETTER===
-(the letter: date placeholder, addressed to the provider's billing department, account/reference line, one numbered paragraph per disputed item citing line, code, amount and reason, a request for an itemized bill and a hold on collections while under review, a clear requested corrected balance, placeholders like [Your Name] where needed)
+(the letter: date placeholder, addressed to the provider's billing department, account/reference line, one numbered paragraph per disputed item citing line, code, amount and reason — state CONFIRMED items as errors to be corrected, SUSPECTED items as charges to be justified or reduced, NEEDS-INFO items as requests for itemization/records — then a request for an itemized bill and a hold on collections while under review, a clear requested corrected balance, placeholders like [Your Name] where needed)
 ===PHONE===
 (a 6-10 line script the consumer can read when calling billing, including what to ask for and what to write down)`,
       },
@@ -292,7 +311,7 @@ Format your reply EXACTLY as:
         content: `${billForPrompt(bill)}
 USER CONTEXT: ${context || "none"}
 DISPUTED ITEMS (total ${bill.currency} ${totalDisputable.toFixed(2)}):
-${findings.map((f, i) => `${i + 1}. [${f.kind}] ${f.title} — lines ${f.lineItemIds.join(", ") || "n/a"} — ${bill.currency} ${f.estimatedOvercharge.toFixed(2)} — ${f.explanation}`).join("\n")}`,
+${findings.map((f, i) => `${i + 1}. [${f.certainty.toUpperCase()} · ${f.kind}] ${f.title} — lines ${f.lineItemIds.join(", ") || "n/a"} — ${bill.currency} ${f.estimatedOvercharge.toFixed(2)} — ${f.explanation}`).join("\n")}`,
       },
     ],
   });
@@ -321,10 +340,26 @@ export function splitLetter(text: string) {
   return { letter, phoneScript };
 }
 
+/**
+ * Combine rule + AI findings:
+ *  - drop AI findings that merely restate a deterministic one (math/duplicate/tax/day-count);
+ *  - for soft rule findings (junk fees), prefer the AI's version when it covers the same line —
+ *    it usually carries the user-specific reason ("despite on-time direct debit").
+ */
+function mergeFindings(rules: Finding[], ai: Finding[]) {
+  const sameLines = (a: Finding, b: Finding) =>
+    a.lineItemIds.length > 0 && a.lineItemIds.length === b.lineItemIds.length && a.lineItemIds.every((id) => b.lineItemIds.includes(id));
+  const aiKept = dedupeAgainstRules(ai, rules);
+  const rulesKept = rules.filter((r) => !(r.kind === "late_fee" && aiKept.some((f) => sameLines(f, r) && f.estimatedOvercharge > 0)));
+  return [...rulesKept, ...aiKept];
+}
+
 /** Drop AI findings that merely restate a deterministic rule finding (same kind, same lines). */
 function dedupeAgainstRules(ai: Finding[], rules: Finding[]) {
-  const RULE_KINDS = new Set(["math_error", "duplicate", "late_fee"]);
+  const RULE_KINDS = new Set(["math_error", "duplicate"]);
   return ai.filter((f) => {
+    // Bill-level AI finding restating a bill-level rule finding (same amount) — e.g. "balance due exceeds reconciled amount"
+    if (!f.lineItemIds.length && rules.some((r) => !r.lineItemIds.length && Math.abs(r.estimatedOvercharge - f.estimatedOvercharge) < 0.01)) return false;
     const isTax = /\b(tax|gst|vat)\b/i.test(f.title);
     if (isTax && rules.some((r) => /tax/i.test(r.title))) return false;
     // Same per-day over-count already caught by the stay-length rule
@@ -341,31 +376,45 @@ function dedupeAgainstRules(ai: Finding[], rules: Finding[]) {
 }
 
 /** Disputable total, never counting more than a line's amount across overlapping findings. */
-function disputableTotal(findings: Finding[], bill: ParsedBill) {
+export function disputableTotal(findings: Finding[], bill: ParsedBill) {
+  return splitTotals(findings, bill).total;
+}
+
+/** Totals by certainty, with per-line caps so overlapping findings never double count. */
+export function splitTotals(findings: Finding[], bill: ParsedBill) {
+  const order = { confirmed: 0, suspected: 1, needs_info: 2 } as const;
+  const sorted = [...findings].sort((a, b) => order[a.certainty] - order[b.certainty]);
   const lineAmount = new Map(bill.lineItems.map((li) => [li.id, li.amount]));
   const used = new Map<string, number>();
-  let total = 0;
-  for (const f of findings) {
-    if (!f.lineItemIds.length) {
-      total += f.estimatedOvercharge;
-      continue;
+  const out = { confirmed: 0, suspected: 0, total: 0 };
+  for (const f of sorted) {
+    let take = f.estimatedOvercharge;
+    if (f.lineItemIds.length) {
+      const room = f.lineItemIds.reduce((s, id) => s + Math.max(0, (lineAmount.get(id) || 0) - (used.get(id) || 0)), 0);
+      take = Math.min(take, room);
+      let left = take;
+      for (const id of f.lineItemIds) {
+        const r = Math.max(0, (lineAmount.get(id) || 0) - (used.get(id) || 0));
+        const t = Math.min(r, left);
+        used.set(id, (used.get(id) || 0) + t);
+        left -= t;
+      }
     }
-    const room = f.lineItemIds.reduce((s, id) => s + Math.max(0, (lineAmount.get(id) || 0) - (used.get(id) || 0)), 0);
-    const take = Math.min(f.estimatedOvercharge, room);
-    total += take;
-    let left = take;
-    for (const id of f.lineItemIds) {
-      const r = Math.max(0, (lineAmount.get(id) || 0) - (used.get(id) || 0));
-      const t = Math.min(r, left);
-      used.set(id, (used.get(id) || 0) + t);
-      left -= t;
-    }
+    if (f.certainty === "confirmed") out.confirmed += take;
+    else if (f.certainty === "suspected") out.suspected += take;
+    out.total += take;
   }
-  return round(total);
+  return { confirmed: round(out.confirmed), suspected: round(out.suspected), total: round(out.total) };
 }
 
 // ---------------------------------------------------------------- orchestrator
-export async function runAudit(input: AuditInput, emit: Emit): Promise<AuditResult> {
+export async function runAudit(input: AuditInput, rawEmit: Emit): Promise<AuditResult> {
+  const started = Date.now();
+  const models: AuditResult["models"] = {};
+  const emit: Emit = (e) => {
+    if (e.type === "step" && e.status === "done" && e.model) models[e.step] = e.model;
+    rawEmit(e);
+  };
   // 1. Extract — vision model for photos, Nano for text (falls back to Super).
   const bill = await step(emit, "extract", input.imageDataUrl ? ["vision"] : ["fast", "mid"], (t) => extract(input, t));
   if (!bill.lineItems.length) throw new Error("Couldn't find any line items on this bill. Try a clearer photo or paste the text.");
@@ -401,18 +450,21 @@ export async function runAudit(input: AuditInput, emit: Emit): Promise<AuditResu
   const { findings: aiFindings, summary } = await step(emit, "audit", ["deep", "mid"], (t) =>
     audit(bill, rules, evidence, input.context, t),
   );
-  const findings = [...rules, ...dedupeAgainstRules(aiFindings, rules)];
+  const findings = mergeFindings(rules, aiFindings);
   emit({ type: "findings", findings });
 
   const totalBilled = billTotal(bill);
-  const totalDisputable = disputableTotal(findings, bill);
+  const totals = splitTotals(findings, bill);
+  const totalDisputable = totals.total;
 
-  // 6. Letter + phone script with Super.
+  // 6. Letter + phone script with Super — drafted for the default-approved set (everything except
+  //    "needs info" items); the user reviews and can rewrite it for their own selection.
   let letter = "";
   let phoneScript = "";
-  if (findings.length) {
+  const draftSet = findings.filter((f) => f.certainty !== "needs_info");
+  if (draftSet.length) {
     ({ letter, phoneScript } = await step(emit, "letter", ["mid", "fast"], (t) =>
-      writeLetter(bill, findings, totalDisputable, input.context, t),
+      writeLetter(bill, draftSet, splitTotals(draftSet, bill).total, input.context, t),
     ));
   } else {
     emit({ type: "step", step: "letter", status: "skipped", detail: "nothing to dispute" });
@@ -423,8 +475,12 @@ export async function runAudit(input: AuditInput, emit: Emit): Promise<AuditResu
     findings,
     totalBilled,
     totalDisputable,
+    confirmedTotal: totals.confirmed,
+    suspectedTotal: totals.suspected,
     summary: summary || (findings.length ? "We found charges worth disputing." : "This bill looks clean — we didn't find anything worth disputing."),
     letter,
     phoneScript,
+    models,
+    durationMs: Date.now() - started,
   };
 }

@@ -19,6 +19,8 @@ export interface ParsedBill {
   statementDate?: string;
   admissionDate?: string; // inpatient stays only (ISO yyyy-mm-dd)
   dischargeDate?: string;
+  periodStart?: string; // service/billing period (utilities, telecom) ISO yyyy-mm-dd
+  periodEnd?: string;
   currency: string;
   lineItems: LineItem[];
   statedSubtotal?: number;
@@ -39,6 +41,14 @@ export type IssueKind =
   | "late_fee"
   | "other";
 
+/**
+ * How sure we are, in plain terms:
+ *  - confirmed  : provable from the bill itself (arithmetic) — this is an error, not an opinion
+ *  - suspected  : likely overcharge backed by rules/benchmarks/evidence, but the provider could justify it
+ *  - needs_info : can't be judged without itemization or records — we ask, we don't claim money
+ */
+export type Certainty = "confirmed" | "suspected" | "needs_info";
+
 export interface Finding {
   id: string;
   kind: IssueKind;
@@ -47,6 +57,7 @@ export interface Finding {
   explanation: string;
   estimatedOvercharge: number;
   confidence: "high" | "medium" | "low";
+  certainty: Certainty;
   source: "rule" | "ai";
   citations: { title: string; url: string }[];
 }
@@ -62,9 +73,13 @@ export interface AuditResult {
   findings: Finding[];
   totalBilled: number;
   totalDisputable: number;
+  confirmedTotal: number;
+  suspectedTotal: number;
   summary: string;
   letter: string;
   phoneScript: string;
+  models: Partial<Record<StepId, string>>;
+  durationMs: number;
 }
 
 /** Events streamed (NDJSON) from /api/audit to the UI. */

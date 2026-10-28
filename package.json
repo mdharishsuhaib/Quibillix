@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "check-models": "node scripts/check-models.mjs"
+    "check-models": "node scripts/check-models.mjs",
+    "eval": "tsx eval/run.ts",
+    "e2e": "tsx scripts/e2e.ts"
   },
   "dependencies": {
     "next": "16.4.3",
@@ -22,6 +24,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }

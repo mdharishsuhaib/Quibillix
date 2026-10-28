@@ -8,7 +8,7 @@ Quibbill: quibble with your bill
 *(Name = "quibble" + "bill": every line on your bill deserves a second look.)*
 
 ## Tagline (≤ 200 chars)
-Snap a photo of a medical, hospital or phone bill. Nemotron agents on Nebius find the overcharges, cite the rule, and write your dispute letter.
+An AI bill verification and dispute agent: Nemotron on Nebius checks every line, investigates with cited evidence, and drafts the dispute. You approve it and track what you recover.
 
 ## Track
 Best Apps and Agents
@@ -27,12 +27,18 @@ nvidia-nemotron, nebius-token-factory, tavily, next.js, react, typescript, tailw
 Billing errors are common, and the people who can least afford them are the ones who pay them anyway. Itemized bills come in a language patients don't speak (CPT codes, revenue codes, "consumables", "service charge 10%"). Fighting them takes hours of research that most people don't have. Hospitals and carriers have billing departments; patients have nobody. We wanted to give everyone a billing advocate for the price of a few API calls.
 
 ## What it does
-Quibbill takes a photo, a screenshot or pasted text of a bill, plus an optional sentence about what actually happened. It returns:
-- **The amount you can credibly dispute**, broken down by issue: duplicates, math errors, price outliers, upcoding, unbundling, balance billing, junk fees and items never received.
-- **Evidence:** each AI finding cites the live web sources it relied on (fee schedules, laws, regulator rules).
-- **A ready-to-send dispute letter** (editable, downloadable) and a **phone script** for calling the billing office.
+Quibbill turns checking a bill into an agentic workflow with a human in charge of every decision:
 
-It works across countries and currencies. The samples include a US ER bill, an Indian private-hospital bill in INR and a US telecom bill.
+1. **Check:** reads a photo or text of a medical, hospital, telecom or utility bill and verifies every line with deterministic checks (arithmetic, duplicates, totals, day counts, tax on exempt services, junk fees).
+2. **Investigate:** NVIDIA Nemotron agents research live benchmarks and consumer law through Tavily, then audit for upcoding, unbundling, price outliers, balance billing and services never received. Every claim cites a real retrieved source.
+3. **Build the dispute:** drafts an evidence-backed letter and phone script. Errors are stated as errors, suspicions as charges to justify, and gaps as requests for records.
+4. **Resolve with oversight:** the user approves or rejects each finding, and the letter is rewritten for only what they approved. The case is then tracked from Draft to Resolved, with the amount actually recovered and a timestamped audit trail of every agent and human decision.
+
+**Honest numbers.** Every finding is labelled **Confirmed error** (provable from the bill's own numbers, decided by code, never by the AI), **Suspected overcharge**, or **Needs info**. The dashboard keeps *flagged*, *confirmed*, *approved* and *actually recovered* money separate, plus estimated review time saved.
+
+**Measured accuracy.** On a ground-truth benchmark of bills with planted errors plus a clean control bill, Quibbill caught **6 of 7 planted errors** with **0 false positives**, and the clean bill came back with **no findings**. Average time is about 1 minute per bill, against an estimated 30–60 minutes of manual review. `npm run eval` reproduces this.
+
+It works across countries and currencies. The samples include a US ER bill, an Indian private-hospital bill (INR, read from a photo) and a US telecom bill.
 
 ## How we built it
 Quibbill is a six-step agent pipeline that streams each step to the UI as it runs. Each step goes to the right-sized NVIDIA Nemotron model on Nebius Token Factory:
@@ -46,15 +52,17 @@ Quibbill is a six-step agent pipeline that streams each step to the UI as it run
 Token Factory's OpenAI-compatible API let us route by tier and add an automatic fallback chain (Ultra → Super, Nano → Super). The demo keeps working if a model is busy, and most tokens go through the cheap models.
 
 ## Challenges we ran into
-- **Getting LLMs to do arithmetic reliably.** We moved the math out of the model entirely into a rules engine and passed those results into the audit as facts.
+- **Getting LLMs to do arithmetic reliably.** We moved the math out of the model entirely into a rules engine and passed those results into the audit as facts. Only code can mark a finding "confirmed".
 - **Hallucinated citations.** We give the model a numbered evidence list and map its numbers back to real URLs on the server. If a source wasn't retrieved, it can't be cited.
-- **Double counting.** Several findings can hit the same line, so the disputable total spreads each line's amount across its findings and never counts more than the line itself.
-- **TODO:** add anything real you hit (rate limits, a JSON-mode quirk, deployment issues).
+- **Double counting.** Several findings can hit the same line, so totals are capped per line and never count more than the line itself.
+- **Reasoning latency.** With thinking enabled, the Nemotron models took 5+ minutes per audit, and on one run the letter came back empty because reasoning used up the token budget. Disabling thinking (`chat_template_kwargs.enable_thinking=false`) cut a full audit to about 1–2 minutes. On our benchmark, Ultra was *more* thorough in non-thinking mode.
+- **"Everything looks fine" noise.** Early runs listed "this charge is within range" as findings. We tightened the prompt and filter zero-value commentary, so the clean control bill now returns zero findings.
 
 ## Accomplishments that we're proud of
-- On the US ER sample it finds the duplicate X-ray, a supplies line that doesn't add up (3 × $65 ≠ $235), the late fee, a level-5 ER visit for a sprained ankle (upcoding) and surprise out-of-network physician billing, then writes a complete letter. **TODO:** replace this with your actual result numbers.
-- Sources are shown for every AI claim.
-- It works on a phone photo.
+- **Measured, not claimed:** 6/7 planted errors caught, 0 false positives, and the clean bill came back clean (`npm run eval`).
+- **A full loop, not a chatbot:** check → investigate → dispute → human approval → tracking → recovered amount, with an audit trail.
+- **US ER sample:** flags the duplicate X-ray, supplies arithmetic (3 × $65 ≠ $235), a level-5 ER code for a sprained ankle and No Surprises Act balance billing, citing sources for each.
+- **Indian hospital sample (read from a photo):** flags an ICU charge with no ICU stay, 4 room-days billed for 3 nights, GST on GST-exempt healthcare, platelets priced around 3× the state rate, and a 10% "service charge".
 
 ## What we learned
 **TODO:** write this in your own words (e.g. which Nemotron model surprised you, and what model routing did to cost and latency).
@@ -92,13 +100,14 @@ Token Factory's OpenAI-compatible API let us route by tier and add an automatic 
 
 | Time | Show | Say |
 | --- | --- | --- |
-| 0:00–0:15 | Real-looking ER bill, $6,447 | "This is a $6,447 ER bill for a sprained ankle. Most people just pay it. Watch what happens." |
-| 0:15–0:35 | Click sample → **Audit my bill**; pipeline lights up | "Quibbill sends it through a team of NVIDIA Nemotron agents on Nebius Token Factory." |
-| 0:35–1:05 | Green banner with the disputable $, findings list | "Duplicate X-ray. Supplies that don't add up. A level-5 ER code for a sprain. Surprise out-of-network billing. Each finding cites its source." |
-| 1:05–1:30 | Letter tab → phone script → download | "It writes the dispute letter and the script for calling billing. Done in under a minute." |
-| 1:30–2:00 | Upload a **phone photo** of a bill (Indian hospital sample, printed) | "It reads photos with Nemotron Super VL, in any currency. Here it flags an ICU charge on a patient who was never in the ICU, plus a 10% service charge." |
-| 2:00–2:40 | Pipeline sidebar showing model names/timings; quick view of `llm.ts` routing table | "Every step runs on the right-sized Nemotron: Nano for extraction, Super for planning and writing, Ultra for the deep audit, and Tavily for live research. All through one Token Factory API, with automatic fallbacks." |
-| 2:40–3:00 | Back to the banner | "Billing errors cost people money every day. Quibbill gives everyone a billing advocate. Try it at [URL]." |
+| 0:00–0:15 | ER bill, $6,447 | "This is a $6,447 ER bill for a sprained ankle. Most people just pay it. Watch what happens." |
+| 0:15–0:35 | Click sample → **Audit my bill**; pipeline lights up step by step | "Quibbill **checks** every line, then NVIDIA Nemotron agents on Nebius Token Factory **investigate**, researching live prices and law with Tavily." |
+| 0:35–1:05 | Banner: flagged / **confirmed** / suspected; findings with certainty badges and sources | "A confirmed arithmetic error, which is provable from the bill itself. A duplicate X-ray. A level-5 code for a sprain. Surprise out-of-network billing. Suspicions are labelled as suspicions, and each one cites its source." |
+| 1:05–1:35 | **Untick** one finding → "Rewrite letter for approved items" → letter updates | "Nothing goes out without me. I reject what I'm not sure about, and the agent rewrites the dispute for exactly what I approved." |
+| 1:35–1:55 | **Approve & track** → My disputes: status, audit trail, log "recovered" | "Then it tracks the case to resolution, with an audit trail of every agent and human decision, and the money I actually got back." |
+| 1:55–2:20 | **📷 Photo of a bill** (Indian hospital) → results | "It reads photos with Nemotron Super VL, in any currency. It catches an ICU charge with no ICU stay, extra room-days, and GST on GST-exempt healthcare." |
+| 2:20–2:45 | Terminal: `npm run eval` summary; pipeline sidebar model names | "We measured it. On bills with planted errors it caught 6 of 7, with zero false positives, and a clean bill stays clean. Each step uses the right-sized Nemotron, all through one Token Factory API." |
+| 2:45–3:00 | Value dashboard | "Billing errors cost people money every day. Quibbill gives everyone a billing advocate. Try it at [URL]." |
 
 Recording tips: use 1080p, zoom the browser to 110–125%, and do one dry run first so the Ultra step isn't cold. Use no copyrighted music (YouTube Audio Library is safe). Set the video to **Public**.
 
