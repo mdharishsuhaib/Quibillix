@@ -59,6 +59,7 @@ credentials*
 *secret*
 *secrets*
 !src/**/*secret*.ts
+!scripts/check-secrets.mjs
 service-account*.json
 *-sa.json
 token.json
