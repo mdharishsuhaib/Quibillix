@@ -149,7 +149,7 @@ export function LetterPanel({
     const blob = new Blob([letter], { type: "text/plain" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `quibbill-dispute-${(result.bill.provider || "bill").replace(/\W+/g, "-").toLowerCase()}.txt`;
+    a.download = `quibillix-dispute-${(result.bill.provider || "bill").replace(/\W+/g, "-").toLowerCase()}.txt`;
     a.click();
   };
 

@@ -1,5 +1,5 @@
 // Usage: node scripts/check-models.mjs   (reads NEBIUS_API_KEY from .env.local or env)
-// Lists the NVIDIA models your Token Factory key can access and verifies Quibbill's configured IDs.
+// Lists the NVIDIA models your Token Factory key can access and verifies Quibillix's configured IDs.
 import fs from "node:fs";
 
 if (fs.existsSync(".env.local")) {
@@ -30,5 +30,5 @@ const wanted = {
   MODEL_MID: process.env.MODEL_MID || "nvidia/nemotron-3-super-120b-a12b",
   MODEL_DEEP: process.env.MODEL_DEEP || "nvidia/Nemotron-3-Ultra-550b-a55b",
 };
-console.log("\nQuibbill configuration:");
+console.log("\nQuibillix configuration:");
 for (const [k, v] of Object.entries(wanted)) console.log(`  ${ids.includes(v) ? "OK     " : "MISSING"} ${k}=${v}`);

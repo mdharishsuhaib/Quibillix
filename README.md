@@ -1,8 +1,10 @@
-# Quibbill: quibble with your bill
+# Quibillix
 
-*Quibbill* (quibble + bill) is an AI-powered bill verification and dispute agent.
+**AI-Powered Bill Verification & Dispute Agent.** *Every charge questioned. Every dispute supported.*
 
-**Quibbill turns checking a bill from hours of manual review into an agentic workflow: Check → Investigate → Build the dispute → Resolve with oversight.** Upload a photo or paste a medical, hospital, telecom or utility bill. NVIDIA Nemotron agents on **Nebius Token Factory** verify every line, investigate suspicious charges against live benchmarks and consumer law (via **Tavily**), and draft an evidence-backed dispute. You approve each item before anything goes out, then track the case through to the money you actually recover.
+*Quibillix* (quibble + bill + x) is an AI-powered bill verification and dispute agent.
+
+**Quibillix turns checking a bill from hours of manual review into an agentic workflow: Check → Investigate → Build the dispute → Resolve with oversight.** Upload a photo or paste a medical, hospital, telecom or utility bill. NVIDIA Nemotron agents on **Nebius Token Factory** verify every line, investigate suspicious charges against live benchmarks and consumer law (via **Tavily**), and draft an evidence-backed dispute. You approve each item before anything goes out, then track the case through to the money you actually recover.
 
 - **Live demo:** `<your-vercel-url>`
 - **Demo video:** `<your-youtube-url>`
@@ -11,7 +13,7 @@
 
 ## Why
 
-Billing errors are common, but few people have the time or know-how to fight them. Itemized hospital bills use codes like `99285` and `0450` that most patients can't read, and an Explanation of Benefits rarely makes the problem clear. Most people just pay, and this hits hardest for people without a billing advocate, a lawyer or the spare hours to research fair prices. In India, families paying cashless-claim balances get bills full of "consumables", "service charges" and GST lines that they can't check. Quibbill acts as that billing advocate, and it costs a few cents in tokens per bill.
+Billing errors are common, but few people have the time or know-how to fight them. Itemized hospital bills use codes like `99285` and `0450` that most patients can't read, and an Explanation of Benefits rarely makes the problem clear. Most people just pay, and this hits hardest for people without a billing advocate, a lawyer or the spare hours to research fair prices. In India, families paying cashless-claim balances get bills full of "consumables", "service charges" and GST lines that they can't check. Quibillix acts as that billing advocate, and it costs a few cents in tokens per bill.
 
 ## The workflow
 
@@ -24,7 +26,7 @@ Billing errors are common, but few people have the time or know-how to fight the
 
 ### Suspected ≠ confirmed ≠ recovered
 
-Quibbill never presents a guess as a fact. Every finding has a certainty:
+Quibillix never presents a guess as a fact. Every finding has a certainty:
 
 - **Confirmed error**: provable from the bill's own numbers (arithmetic, day counts). Only deterministic code can confirm; the AI never does.
 - **Suspected overcharge**: backed by benchmarks, rules or the user's account; the provider must justify or reduce it.
@@ -62,7 +64,7 @@ Token Factory helped in several ways:
 | Clean bill | **0 findings** ✔ |
 | Avg. time per bill | ~56 s (vs. an estimated 30–60 min of manual line-by-line review) |
 
-The miss is honest: when a utility bill used an *estimated* meter reading but the user reported an actual one, Quibbill flagged the tariff but didn't recompute usage from the actual reading. That's next on the list.
+The miss is honest: when a utility bill used an *estimated* meter reading but the user reported an actual one, Quibillix flagged the tariff but didn't recompute usage from the actual reading. That's next on the list.
 
 On the three demo samples (US ER visit, Indian hospital stay, telecom bill), it catches the duplicate X-ray, upcoded ER level, No Surprises Act balance billing, ICU charge with no ICU stay, extra room-days, GST on exempt healthcare, cramming add-ons and junk fees.
 
@@ -71,8 +73,8 @@ On the three demo samples (US ER visit, Indian hospital stay, telecom bill), it 
 Requirements: Node.js 20+ and a Nebius Token Factory API key. A Tavily key is optional but recommended.
 
 ```bash
-git clone <this-repo-url> quibbill
-cd quibbill
+git clone <this-repo-url> quibillix
+cd quibillix
 npm install
 cp .env.example .env.local      # then fill in NEBIUS_API_KEY and TAVILY_API_KEY
 npm run check-models            # verifies the Nemotron model IDs on your account
@@ -115,7 +117,7 @@ Case tracker (browser localStorage): status · recovered amount · audit trail �
 
 Key files: `src/lib/pipeline.ts` (orchestrator and prompts), `src/lib/llm.ts` (Token Factory client and model routing), `src/lib/rules.ts`, `src/lib/tavily.ts`, `src/lib/cases.ts` (case tracker), `src/components/*`, `eval/` (benchmark).
 
-**Privacy:** Quibbill has no database. Each bill is processed in memory and sent only to the model API (Nebius Token Factory). Tavily receives only the generated search queries, never the bill itself. Tracked cases live only in your browser's local storage.
+**Privacy:** Quibillix has no database. Each bill is processed in memory and sent only to the model API (Nebius Token Factory). Tavily receives only the generated search queries, never the bill itself. Tracked cases live only in your browser's local storage.
 
 ## Feedback on Nebius Token Factory and NVIDIA Nemotron
 
@@ -123,4 +125,4 @@ See [`SUBMISSION.md`](./SUBMISSION.md#feedback).
 
 ## Disclaimer
 
-Quibbill gives informational analysis, not legal, medical or financial advice. Check its findings with your provider or insurer.
+Quibillix gives informational analysis, not legal, medical or financial advice. Check its findings with your provider or insurer.

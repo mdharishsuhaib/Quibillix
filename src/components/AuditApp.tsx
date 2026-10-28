@@ -495,7 +495,7 @@ export default function AuditApp() {
 
             {bill && (
               <div>
-                <h3 className="mb-1 font-semibold">What Quibbill read</h3>
+                <h3 className="mb-1 font-semibold">What Quibillix read</h3>
                 <p className="mb-3 text-sm text-slate-500">
                   {[bill.provider, bill.location, bill.payer && `Payer: ${bill.payer}`, bill.statementDate].filter(Boolean).join(" · ")}
                 </p>

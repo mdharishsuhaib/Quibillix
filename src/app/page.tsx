@@ -7,8 +7,10 @@ export default function Home() {
         <div>
           <div className="flex items-center gap-2">
             <span className="grid h-9 w-9 place-items-center rounded-lg bg-emerald-600 text-lg font-bold text-white">Q</span>
-            <h1 className="text-2xl font-bold tracking-tight">Quibbill</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Quibillix</h1>
+            <span className="hidden text-sm text-slate-500 sm:inline">AI-Powered Bill Verification &amp; Dispute Agent</span>
           </div>
+          <p className="mt-1 text-sm font-medium text-emerald-700">Every charge questioned. Every dispute supported.</p>
           <p className="mt-2 max-w-2xl text-slate-600">
             Upload a medical, hospital, telecom or utility bill. A team of NVIDIA Nemotron agents reads every line, checks
             it against live fair-price benchmarks and consumer law, and writes the dispute letter for you.
@@ -20,7 +22,7 @@ export default function Home() {
       </header>
       <AuditApp />
       <footer className="mt-16 border-t pt-6 text-xs text-slate-500">
-        Quibbill isn&apos;t legal or medical advice. Always verify findings with your provider or insurer. Quibbill itself
+        Quibillix isn&apos;t legal or medical advice. Always verify findings with your provider or insurer. Quibillix itself
         never stores your bill — it is processed in memory and sent only to the model API (Nebius Token Factory) and, for
         research, search queries (not your bill) go to Tavily. Remove names and account numbers if you prefer.
       </footer>

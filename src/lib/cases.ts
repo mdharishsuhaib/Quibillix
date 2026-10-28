@@ -31,7 +31,7 @@ export interface DisputeCase {
   trail: CaseEvent[];
 }
 
-const KEY = "quibbill.cases.v1";
+const KEY = "quibillix.cases.v1";
 const listeners = new Set<() => void>();
 let cache: { raw: string | null; value: DisputeCase[] } = { raw: null, value: [] };
 const EMPTY: DisputeCase[] = [];
