@@ -22,20 +22,81 @@
 
 # misc
 .DS_Store
-*.pem
+Thumbs.db
 
 # debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.log
 
-# env files (can opt-in for committing if needed)
-.env*
+# ============================================================
+# SECRETS: never commit any of these
+# ============================================================
+# env files (API keys: NEBIUS_API_KEY, TAVILY_API_KEY, NVIDIA keys…)
+.env
+.env.*
+.env*.local
+*.env
 !.env.example
 
-# vercel
+# keys, certificates & credentials
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+*.jks
+*.keystore
+id_rsa*
+id_ed25519*
+*.ppk
+credentials*
+*credentials*.json
+*secret*
+*secrets*
+!src/**/*secret*.ts
+service-account*.json
+*-sa.json
+token.json
+*.token
+api_keys*
+apikeys*
+keys.json
+.npmrc
+.netrc
+.pypirc
+
+# secret folders
+/secrets/
+/.secrets/
+/private/
+/keys/
+/.keys/
+/credentials/
+
+# deployment / CLI state that can contain tokens
 .vercel
+.netlify
+.wrangler/
+.dev.vars
+.nebius/
+.config/nebius/
+.aws/
+.gcloud/
+
+# local editor / agent state
+.cursor/
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# local test artefacts (may contain real bill data)
+/screenshots/
+*.har
 
 # typescript
 *.tsbuildinfo

@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "check-models": "node scripts/check-models.mjs",
+    "check-secrets": "node scripts/check-secrets.mjs",
     "eval": "tsx eval/run.ts",
     "e2e": "tsx scripts/e2e.ts"
   },
