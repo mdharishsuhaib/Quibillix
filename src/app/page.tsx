@@ -20,8 +20,9 @@ export default function Home() {
       </header>
       <AuditApp />
       <footer className="mt-16 border-t pt-6 text-xs text-slate-500">
-        Quibbill isn&apos;t legal or medical advice. Always verify findings with your provider or insurer. Bills you upload
-        are processed in memory and never stored.
+        Quibbill isn&apos;t legal or medical advice. Always verify findings with your provider or insurer. Quibbill itself
+        never stores your bill — it is processed in memory and sent only to the model API (Nebius Token Factory) and, for
+        research, search queries (not your bill) go to Tavily. Remove names and account numbers if you prefer.
       </footer>
     </main>
   );

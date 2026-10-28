@@ -86,7 +86,7 @@ Browser (Next.js 16, React 19, Tailwind)
 
 Key files: `src/lib/pipeline.ts` (orchestrator and prompts), `src/lib/llm.ts` (Token Factory client and model routing), `src/lib/rules.ts`, `src/lib/tavily.ts`, `src/components/*`.
 
-**Privacy:** bills are processed in memory for a single request and never stored or logged.
+**Privacy:** Quibbill stores nothing. Each bill is processed in memory for one request and sent only to the model API (Nebius Token Factory). Tavily receives only the generated search queries, never the bill itself.
 
 ## Feedback on Nebius Token Factory and NVIDIA Nemotron
 
