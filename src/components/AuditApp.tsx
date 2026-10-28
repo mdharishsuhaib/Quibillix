@@ -267,7 +267,7 @@ export default function AuditApp() {
 
   return (
     <div className="space-y-8">
-      <nav className="no-print flex gap-1 rounded-xl bg-slate-100 p-1 text-sm">
+      <nav className="no-print flex gap-1 rounded-xl border border-steel bg-carbon p-1 text-sm">
         {(
           [
             ["audit", "Audit a bill"],
@@ -277,7 +277,7 @@ export default function AuditApp() {
           <button
             key={id}
             onClick={() => setTab(id)}
-            className={`flex-1 rounded-lg px-3 py-2 ${tab === id ? "bg-white font-medium shadow-sm" : "text-slate-500"}`}
+            className={`flex-1 rounded-lg px-3 py-2 ${tab === id ? "bg-raised font-medium text-frost shadow-[inset_0_-2px_0_var(--glacier)]" : "text-mist hover:text-frost"}`}
           >
             {label}
           </button>
@@ -287,7 +287,7 @@ export default function AuditApp() {
       {tab === "cases" && (
         <section>
           <h2 className="mb-1 text-lg font-semibold">My disputes</h2>
-          <p className="mb-4 text-sm text-slate-500">
+          <p className="mb-4 text-sm text-mist">
             Track each dispute from draft to resolution. Everything here is stored only in this browser.
           </p>
           <Cases cases={cases} onChange={refreshCases} onOpen={openCase} />
@@ -297,15 +297,15 @@ export default function AuditApp() {
       {tab === "audit" && (
       <>
       {/* ---------------- input ---------------- */}
-      <section className="no-print rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="no-print panel p-5">
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="text-sm text-slate-500">Try a sample:</span>
+          <span className="text-sm text-mist">Try a sample:</span>
           {SAMPLES.map((s) => (
             <button
               key={s.id}
               onClick={() => loadSample(s.id)}
               disabled={running}
-              className="rounded-full border border-slate-200 px-3 py-1 text-sm hover:border-emerald-400 hover:bg-emerald-50"
+              className="rounded-full border border-steel px-3 py-1 text-sm text-frost transition hover:border-glacier/60 hover:bg-glacier/10 disabled:opacity-40"
               title={s.blurb}
             >
               {s.label}
@@ -318,7 +318,7 @@ export default function AuditApp() {
               setContext(SAMPLES.find((x) => x.id === "in-hospital")!.context);
             }}
             disabled={running}
-            className="rounded-full border border-dashed border-emerald-400 px-3 py-1 text-sm text-emerald-700 hover:bg-emerald-50"
+            className="rounded-full border border-dashed border-cobalt/60 px-3 py-1 text-sm text-cobalt transition hover:bg-cobalt/10 disabled:opacity-40"
             title="Tests the vision path (Nemotron 3.5 Super VL)"
           >
             📷 Photo of a bill
@@ -333,15 +333,15 @@ export default function AuditApp() {
               onFile(e.dataTransfer.files?.[0]);
             }}
           >
-            <label className="mb-1 block text-sm font-medium">Your bill</label>
+            <label className="mb-1 block text-sm font-medium text-frost">Your bill</label>
             {image ? (
-              <div className="flex items-start gap-3 rounded-lg border border-dashed border-slate-300 p-3">
+              <div className="flex items-start gap-3 rounded-lg border border-dashed border-steel bg-ink/50 p-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={image.dataUrl} alt="bill" className="h-40 w-auto rounded border object-contain" />
+                <img src={image.dataUrl} alt="bill" className="h-40 w-auto rounded border border-steel object-contain" />
                 <div className="text-sm">
                   <p className="font-medium">{image.name}</p>
-                  <p className="text-slate-500">Will be read by Nemotron 3.5 Super VL.</p>
-                  <button onClick={() => setImage(null)} className="mt-2 text-rose-600 underline">
+                  <p className="text-mist">Will be read by <span className="text-uv">Nemotron 3.5 Super VL</span>.</p>
+                  <button onClick={() => setImage(null)} className="mt-2 text-coral underline">
                     Remove
                   </button>
                 </div>
@@ -351,14 +351,14 @@ export default function AuditApp() {
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 placeholder="Paste the text of your bill / EOB here, or drop a photo of it…"
-                className="h-64 w-full resize-y rounded-lg border border-slate-300 p-3 font-mono text-xs outline-none focus:border-emerald-500"
+                className="field h-64 w-full resize-y p-3 font-mono text-xs"
               />
             )}
             <div className="mt-2 flex items-center gap-3 text-sm">
-              <button onClick={() => fileRef.current?.click()} className="rounded-md border px-3 py-1.5 hover:bg-slate-50">
+              <button onClick={() => fileRef.current?.click()} className="btn-ghost px-3 py-1.5">
                 Upload photo / screenshot
               </button>
-              <span className="text-xs text-slate-400">JPG, PNG, WebP or .txt — drag & drop works too</span>
+              <span className="text-xs text-mist/70">JPG, PNG, WebP or .txt — drag & drop works too</span>
               <input
                 ref={fileRef}
                 type="file"
@@ -370,17 +370,17 @@ export default function AuditApp() {
           </div>
 
           <div className="flex flex-col">
-            <label className="mb-1 block text-sm font-medium">What happened? (optional, but it helps)</label>
+            <label className="mb-1 block text-sm font-medium text-frost">What happened? (optional, but it helps)</label>
             <textarea
               value={context}
               onChange={(e) => setContext(e.target.value)}
               placeholder="e.g. I was only in the ER for 2 hours for a sprained ankle. I have Aetna PPO; the hospital is in-network."
-              className="h-40 w-full resize-y rounded-lg border border-slate-300 p-3 text-sm outline-none focus:border-emerald-500"
+              className="field h-40 w-full resize-y p-3 text-sm"
             />
             <button
               onClick={run}
               disabled={running || (!text.trim() && !image)}
-              className="mt-auto rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white shadow hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="btn-primary mt-4 px-4 py-3"
             >
               {running ? "Auditing…" : "Audit my bill"}
             </button>
@@ -391,50 +391,51 @@ export default function AuditApp() {
       {/* ---------------- output ---------------- */}
       {started && (
         <section ref={resultsRef} className="grid gap-6 lg:grid-cols-[260px_1fr]">
-          <aside className="no-print h-fit rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:sticky lg:top-4">
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Agent pipeline</h3>
+          <aside className="no-print panel h-fit p-4 lg:sticky lg:top-4">
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-uv">Agent pipeline</h3>
             <Pipeline steps={steps} />
           </aside>
 
           <div className="min-w-0 space-y-6">
-            {error && <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error}</div>}
+            {error && <div className="rounded-xl border border-coral/40 bg-coral/10 p-4 text-sm text-coral">{error}</div>}
 
             {result && (
-              <div className="rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-800 p-6 text-white shadow">
+              <div className="prism-border relative overflow-hidden rounded-2xl p-6 text-frost shadow-[0_20px_60px_-30px_rgba(71,123,255,0.6)]">
                 <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
                   <div>
-                    <p className="text-sm opacity-80">Flagged for review</p>
-                    <p className="text-4xl font-bold tabular-nums">{money(result.totalDisputable, currency)}</p>
-                    <p className="mt-1 text-sm opacity-80">
+                    <p className="text-sm text-mist">Flagged for review</p>
+                    <p className="prism-text text-4xl font-bold tabular-nums">{money(result.totalDisputable, currency)}</p>
+                    <p className="mt-1 text-sm text-mist">
                       of {money(result.totalBilled, currency)} billed ·{" "}
                       {result.totalBilled > 0 ? Math.round((result.totalDisputable / result.totalBilled) * 100) : 0}%
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
-                    <Stat label="Confirmed errors" value={money(result.confirmedTotal, currency)} />
-                    <Stat label="Suspected" value={money(result.suspectedTotal, currency)} />
-                    <Stat label="Needs info" value={`${result.findings.filter((f) => f.certainty === "needs_info").length} item(s)`} />
+                    <Stat tone="text-coral" label="Confirmed errors" value={money(result.confirmedTotal, currency)} />
+                    <Stat tone="text-warn" label="Suspected" value={money(result.suspectedTotal, currency)} />
+                    <Stat tone="text-mist" label="Needs info" value={`${result.findings.filter((f) => f.certainty === "needs_info").length} item(s)`} />
                     <Stat
+                      tone="text-glacier"
                       label="Time"
                       value={`${Math.round(result.durationMs / 1000)}s vs ~${Math.round(manualMinutes(result.bill.lineItems.length) / 60 * 10) / 10}h`}
                     />
                   </div>
                 </div>
-                <p className="mt-4 max-w-3xl text-[15px] leading-relaxed">{result.summary}</p>
+                <p className="mt-4 max-w-3xl text-[15px] leading-relaxed text-frost/90">{result.summary}</p>
               </div>
             )}
 
             {findings.length > 0 && (
               <div>
                 <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-                  <h3 className="font-semibold">
+                  <h3 className="font-semibold text-frost">
                     {result ? "Review findings" : "Issues found"}{" "}
-                    {!result && <span className="text-sm font-normal text-slate-400">(deep audit in progress…)</span>}
+                    {!result && <span className="text-sm font-normal text-uv">(deep audit in progress…)</span>}
                   </h3>
                   {result && (
-                    <p className="text-sm text-slate-500">
-                      Untick anything you don&apos;t want to dispute. <b className="text-slate-800">{approved.size}</b> approved ·{" "}
-                      <b className="text-slate-800">{money(approvedTotal, currency)}</b>
+                    <p className="text-sm text-mist">
+                      Untick anything you don&apos;t want to dispute. <b className="text-glacier">{approved.size}</b> approved ·{" "}
+                      <b className="text-glacier">{money(approvedTotal, currency)}</b>
                     </p>
                   )}
                 </div>
@@ -460,13 +461,13 @@ export default function AuditApp() {
             {result && letter && (
               <div>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="font-semibold">Dispute letter</h3>
+                  <h3 className="font-semibold text-frost">Dispute letter</h3>
                   <div className="flex flex-wrap gap-2">
                     {letterStale && (
                       <button
                         onClick={regenerate}
                         disabled={regenerating || !approved.size}
-                        className="rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+                        className="rounded-md border border-uv/50 bg-uv/10 px-3 py-1.5 text-sm text-uv transition hover:bg-uv/20 disabled:opacity-40"
                       >
                         {regenerating ? "Rewriting…" : "Rewrite letter for approved items"}
                       </button>
@@ -475,14 +476,14 @@ export default function AuditApp() {
                       onClick={approveAndTrack}
                       disabled={!approved.size || letterStale || regenerating}
                       title={letterStale ? "Rewrite the letter first so it matches your approvals" : ""}
-                      className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                      className="btn-primary px-3 py-1.5 text-sm"
                     >
                       {caseId ? "Update tracked case" : "Approve & track dispute"}
                     </button>
                   </div>
                 </div>
                 {caseId && (
-                  <p className="mb-2 text-sm text-emerald-700">
+                  <p className="mb-2 text-sm text-mint">
                     Tracking as case <b>{caseId}</b>.{" "}
                     <button className="underline" onClick={() => setTab("cases")}>
                       Open My disputes →
@@ -495,8 +496,8 @@ export default function AuditApp() {
 
             {bill && (
               <div>
-                <h3 className="mb-1 font-semibold">What Quibillix read</h3>
-                <p className="mb-3 text-sm text-slate-500">
+                <h3 className="mb-1 font-semibold text-frost">What Quibillix read</h3>
+                <p className="mb-3 text-sm text-mist">
                   {[bill.provider, bill.location, bill.payer && `Payer: ${bill.payer}`, bill.statementDate].filter(Boolean).join(" · ")}
                 </p>
                 <LineItems bill={bill} findings={findings} />
@@ -504,19 +505,19 @@ export default function AuditApp() {
             )}
 
             {evidence.length > 0 && (
-              <details className="rounded-xl border border-slate-200 bg-white p-4">
-                <summary className="cursor-pointer text-sm font-medium">
+              <details className="panel p-4">
+                <summary className="cursor-pointer text-sm font-medium text-cobalt">
                   Research trail ({evidence.reduce((s, e) => s + e.results.length, 0)} sources via Tavily)
                 </summary>
                 <div className="mt-3 space-y-4">
                   {evidence.map((e) => (
                     <div key={e.query}>
-                      <p className="text-sm font-medium">“{e.query}”</p>
-                      {e.answer && <p className="mt-1 text-sm text-slate-600">{e.answer}</p>}
+                      <p className="text-sm font-medium text-frost">“{e.query}”</p>
+                      {e.answer && <p className="mt-1 text-sm text-mist">{e.answer}</p>}
                       <ul className="mt-1 space-y-0.5">
                         {e.results.map((r) => (
                           <li key={r.url} className="truncate text-xs">
-                            <a href={r.url} target="_blank" rel="noreferrer" className="text-emerald-700 underline">
+                            <a href={r.url} target="_blank" rel="noreferrer" className="text-cobalt underline decoration-cobalt/40 hover:text-glacier">
                               {r.title}
                             </a>
                           </li>
@@ -536,11 +537,11 @@ export default function AuditApp() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, tone = "text-frost" }: { label: string; value: string; tone?: string }) {
   return (
     <div>
-      <p className="text-[11px] uppercase tracking-wide opacity-70">{label}</p>
-      <p className="font-semibold tabular-nums">{value}</p>
+      <p className="text-[11px] uppercase tracking-wide text-mist">{label}</p>
+      <p className={`font-semibold tabular-nums ${tone}`}>{value}</p>
     </div>
   );
 }

@@ -16,15 +16,16 @@ const KIND_LABEL: Record<IssueKind, string> = {
 };
 
 const CONF: Record<Finding["confidence"], string> = {
-  high: "bg-emerald-100 text-emerald-800",
-  medium: "bg-amber-100 text-amber-800",
-  low: "bg-slate-100 text-slate-700",
+  high: "border border-mint/30 text-mint",
+  medium: "border border-warn/30 text-warn",
+  low: "border border-steel text-mist",
 };
 
-const CERTAINTY: Record<Finding["certainty"], { label: string; cls: string; hint: string }> = {
-  confirmed: { label: "Confirmed error", cls: "bg-rose-600 text-white", hint: "Provable from the bill's own numbers" },
-  suspected: { label: "Suspected overcharge", cls: "bg-amber-100 text-amber-900", hint: "Backed by rules/benchmarks — provider must justify" },
-  needs_info: { label: "Needs info", cls: "bg-slate-200 text-slate-700", hint: "We'll ask for itemization; no amount claimed" },
+// Coral = provable error, amber = possible discrepancy, silver = open question. Never label a mere flag as "wrong".
+const CERTAINTY: Record<Finding["certainty"], { label: string; cls: string; amount: string; hint: string }> = {
+  confirmed: { label: "Confirmed error", cls: "bg-coral/15 text-coral ring-1 ring-coral/40", amount: "text-coral", hint: "Provable from the bill's own numbers" },
+  suspected: { label: "Suspected overcharge", cls: "bg-warn/15 text-warn ring-1 ring-warn/40", amount: "text-warn", hint: "Backed by rules/benchmarks — provider must justify" },
+  needs_info: { label: "Needs info", cls: "bg-mist/10 text-mist ring-1 ring-mist/30", amount: "text-mist", hint: "We'll ask for itemization; no amount claimed" },
 };
 
 export function money(n: number, currency: string) {
@@ -48,14 +49,14 @@ export function FindingCard({
 }) {
   const c = CERTAINTY[f.certainty];
   return (
-    <div className={`rounded-xl border bg-white p-4 shadow-sm transition ${approved === false ? "border-slate-200 opacity-50" : "border-slate-200"}`}>
+    <div className={`panel p-4 transition ${approved === false ? "opacity-45" : "hover:border-[#33445f]"}`}>
       <div className="flex flex-wrap items-center gap-2">
         {onToggle && (
           <input
             type="checkbox"
             checked={approved}
             onChange={onToggle}
-            className="h-4 w-4 accent-emerald-600"
+            className="h-4 w-4 accent-[#20e3ce]"
             title="Include in dispute"
             aria-label={`Include "${f.title}" in dispute`}
           />
@@ -63,23 +64,23 @@ export function FindingCard({
         <span className={`rounded px-2 py-0.5 text-xs font-semibold ${c.cls}`} title={c.hint}>
           {c.label}
         </span>
-        <span className="rounded bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700">{KIND_LABEL[f.kind]}</span>
+        <span className="rounded bg-uv/10 px-2 py-0.5 text-xs font-semibold text-uv">{KIND_LABEL[f.kind]}</span>
         <span className={`rounded px-2 py-0.5 text-xs ${CONF[f.confidence]}`}>{f.confidence} confidence</span>
-        <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+        <span className="rounded bg-cobalt/10 px-2 py-0.5 text-xs text-cobalt">
           {f.source === "rule" ? "deterministic check" : "Nemotron audit"}
         </span>
-        {f.lineItemIds.length > 0 && <span className="text-xs text-slate-400">lines {f.lineItemIds.join(", ")}</span>}
-        <span className="ml-auto text-sm font-semibold text-rose-700">
+        {f.lineItemIds.length > 0 && <span className="text-xs text-mist/70">lines {f.lineItemIds.join(", ")}</span>}
+        <span className={`ml-auto text-sm font-semibold tabular-nums ${c.amount}`}>
           {f.estimatedOvercharge > 0 ? `−${money(f.estimatedOvercharge, currency)}` : "itemize"}
         </span>
       </div>
-      <h4 className="mt-2 font-medium">{f.title}</h4>
-      <p className="mt-1 text-sm text-slate-600">{f.explanation}</p>
+      <h4 className="mt-2 font-medium text-frost">{f.title}</h4>
+      <p className="mt-1 text-sm text-mist">{f.explanation}</p>
       {f.citations.length > 0 && (
         <ul className="mt-2 space-y-0.5">
           {f.citations.map((c) => (
             <li key={c.url} className="truncate text-xs">
-              <a className="text-emerald-700 underline" href={c.url} target="_blank" rel="noreferrer">
+              <a className="text-cobalt underline decoration-cobalt/40 hover:text-glacier" href={c.url} target="_blank" rel="noreferrer">
                 {c.title || c.url}
               </a>
             </li>
@@ -93,9 +94,9 @@ export function FindingCard({
 export function LineItems({ bill, findings }: { bill: ParsedBill; findings: Finding[] }) {
   const flagged = new Set(findings.flatMap((f) => f.lineItemIds));
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+    <div className="panel overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+        <thead className="border-b border-steel bg-ink/40 text-left text-xs uppercase tracking-wide text-mist">
           <tr>
             <th className="px-3 py-2">#</th>
             <th className="px-3 py-2">Code</th>
@@ -106,15 +107,15 @@ export function LineItems({ bill, findings }: { bill: ParsedBill; findings: Find
         </thead>
         <tbody>
           {bill.lineItems.map((li) => (
-            <tr key={li.id} className={`border-t ${flagged.has(li.id) ? "bg-rose-50" : ""}`}>
-              <td className="px-3 py-1.5 font-mono text-xs text-slate-400">{li.id}</td>
-              <td className="px-3 py-1.5 font-mono text-xs">{li.code ?? ""}</td>
+            <tr key={li.id} className={`border-t border-steel/70 ${flagged.has(li.id) ? "bg-warn/[0.06]" : ""}`}>
+              <td className="px-3 py-1.5 font-mono text-xs text-mist/70">{li.id}</td>
+              <td className="px-3 py-1.5 font-mono text-xs text-mist">{li.code ?? ""}</td>
               <td className="px-3 py-1.5">
                 {li.description}
-                {flagged.has(li.id) && <span className="ml-2 text-xs font-medium text-rose-600">flagged</span>}
+                {flagged.has(li.id) && <span className="ml-2 text-xs font-medium text-warn">flagged for review</span>}
               </td>
               <td className="px-3 py-1.5 text-right">{li.quantity}</td>
-              <td className="px-3 py-1.5 text-right tabular-nums">{money(li.amount, bill.currency)}</td>
+              <td className="px-3 py-1.5 text-right tabular-nums text-frost">{money(li.amount, bill.currency)}</td>
             </tr>
           ))}
         </tbody>
@@ -154,38 +155,38 @@ export function LetterPanel({
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center gap-1 border-b px-3 pt-3">
+    <div className="panel">
+      <div className="flex items-center gap-1 border-b border-steel px-3 pt-3">
         {(["letter", "phone"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`rounded-t-md px-3 py-1.5 text-sm ${tab === t ? "bg-emerald-50 font-medium text-emerald-800" : "text-slate-500"}`}
+            className={`rounded-t-md px-3 py-1.5 text-sm ${tab === t ? "border-b-2 border-uv bg-uv/10 font-medium text-frost" : "text-mist hover:text-frost"}`}
           >
             {t === "letter" ? "Dispute letter" : "Phone script"}
           </button>
         ))}
         <div className="ml-auto flex gap-2 pb-2">
-          <button onClick={copy} className="rounded-md border px-2.5 py-1 text-xs hover:bg-slate-50">
+          <button onClick={copy} className="btn-ghost px-2.5 py-1 text-xs">
             {copied ? "Copied!" : "Copy"}
           </button>
           {tab === "letter" && (
-            <button onClick={download} className="rounded-md border px-2.5 py-1 text-xs hover:bg-slate-50">
+            <button onClick={download} className="btn-ghost px-2.5 py-1 text-xs">
               Download
             </button>
           )}
         </div>
       </div>
       {regenerating ? (
-        <div className="grid h-96 place-items-center text-sm text-slate-500">Rewriting the letter with only your approved items…</div>
+        <div className="grid h-96 place-items-center text-sm text-uv">Rewriting the letter with only your approved items…</div>
       ) : tab === "letter" ? (
         <textarea
           value={letter}
           onChange={(e) => setLetter(e.target.value)}
-          className="h-96 w-full resize-y p-4 font-mono text-[13px] leading-relaxed outline-none"
+          className="h-96 w-full resize-y rounded-b-2xl bg-transparent p-4 font-mono text-[13px] leading-relaxed text-frost outline-none"
         />
       ) : (
-        <pre className="h-96 overflow-auto whitespace-pre-wrap p-4 font-mono text-[13px] leading-relaxed">{phoneScript}</pre>
+        <pre className="h-96 overflow-auto whitespace-pre-wrap p-4 font-mono text-[13px] leading-relaxed text-frost">{phoneScript}</pre>
       )}
     </div>
   );

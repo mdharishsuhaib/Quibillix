@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -17,6 +17,8 @@ export const metadata: Metadata = {
   description:
     "Find overcharges in medical, hospital, telecom and utility bills and get a ready-to-send dispute letter. Powered by NVIDIA Nemotron on Nebius Token Factory.",
 };
+
+export const viewport: Viewport = { themeColor: "#080C18", colorScheme: "dark" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
