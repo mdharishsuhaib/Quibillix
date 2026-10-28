@@ -1,6 +1,6 @@
 import { connection } from "next/server";
 import { runAudit, type AuditInput } from "@/lib/pipeline";
-import { hasNebiusKey, MODELS } from "@/lib/llm";
+import { hasModelProvider, providers } from "@/lib/llm";
 import { hasTavilyKey } from "@/lib/tavily";
 import type { StreamEvent } from "@/lib/types";
 
@@ -20,12 +20,15 @@ function rateLimited(ip: string) {
 
 export async function GET() {
   await connection(); // always evaluate at request time
-  return Response.json({ nebius: hasNebiusKey(), tavily: hasTavilyKey(), models: MODELS });
+  return Response.json({
+    providers: providers().map((p) => ({ id: p.id, name: p.name, models: p.models })),
+    tavily: hasTavilyKey(),
+  });
 }
 
 export async function POST(req: Request) {
-  if (!hasNebiusKey()) {
-    return Response.json({ error: "Server is missing NEBIUS_API_KEY" }, { status: 500 });
+  if (!hasModelProvider()) {
+    return Response.json({ error: "Server has no model provider configured (NEBIUS_API_KEY or NVIDIA_API_KEY)" }, { status: 500 });
   }
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "local";
   if (rateLimited(ip)) {

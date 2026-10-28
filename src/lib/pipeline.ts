@@ -1,4 +1,4 @@
-import { chat, chatJson, MODELS, type ChatMessage, type Tier } from "./llm";
+import { chat, chatJson, primaryModel, providers, traced, type ChatMessage, type Tier } from "./llm";
 import { hasTavilyKey, tavilySearch } from "./tavily";
 import { billTotal, runRules } from "./rules";
 import type { AuditResult, Evidence, Finding, IssueKind, ParsedBill, StepId, StreamEvent } from "./types";
@@ -26,7 +26,11 @@ const num = (v: unknown): number | undefined => {
   return undefined;
 };
 
-/** Run a step with timing + streamed status. Falls back to a cheaper/other tier if the model errors. */
+/**
+ * Run a step with timing + streamed status. Each tier already fails over across providers
+ * (Nebius -> NVIDIA); if a whole tier fails, fall back to the next tier.
+ * The streamed label shows the model AND provider that actually answered.
+ */
 async function step<T>(
   emit: Emit,
   id: StepId,
@@ -36,14 +40,15 @@ async function step<T>(
   const t0 = Date.now();
   let lastErr: unknown;
   for (const tier of tiers) {
-    emit({ type: "step", step: id, status: "running", model: MODELS[tier] });
+    const p = providers()[0];
+    emit({ type: "step", step: id, status: "running", model: `${primaryModel(tier)}${p ? ` · ${p.name}` : ""}` });
     try {
-      const out = await fn(tier);
-      emit({ type: "step", step: id, status: "done", model: MODELS[tier], ms: Date.now() - t0 });
+      const { out, used } = await traced(() => fn(tier));
+      emit({ type: "step", step: id, status: "done", model: used || primaryModel(tier), ms: Date.now() - t0 });
       return out;
     } catch (e) {
       lastErr = e;
-      console.error(`[${id}] ${MODELS[tier]} failed:`, e);
+      console.error(`[${id}] tier ${tier} failed:`, e);
     }
   }
   emit({ type: "step", step: id, status: "error", detail: String(lastErr instanceof Error ? lastErr.message : lastErr) });
@@ -436,7 +441,19 @@ export async function runAudit(input: AuditInput, rawEmit: Emit): Promise<AuditR
       emit({ type: "step", step: "research", status: "running", model: "Tavily search", detail: plan.queries.join(" · ") });
       const settled = await Promise.allSettled(plan.queries.map(tavilySearch));
       evidence = settled.flatMap((s) => (s.status === "fulfilled" ? [s.value] : []));
-      emit({ type: "step", step: "research", status: "done", model: "Tavily search", ms: Date.now() - t1, detail: `${evidence.reduce((s, e) => s + e.results.length, 0)} sources` });
+      const failed = settled.filter((s) => s.status === "rejected").length;
+      settled.forEach((s) => s.status === "rejected" && console.warn("[research]", s.reason));
+      const nSources = evidence.reduce((s, e) => s + e.results.length, 0);
+      emit({
+        type: "step",
+        step: "research",
+        status: evidence.length ? "done" : "error",
+        model: "Tavily search",
+        ms: Date.now() - t1,
+        detail: evidence.length
+          ? `${nSources} sources${failed ? ` (${failed} search${failed > 1 ? "es" : ""} failed)` : ""}`
+          : "Web research unavailable, so price findings will be marked lower confidence",
+      });
       emit({ type: "evidence", evidence });
     } else {
       emit({ type: "step", step: "research", status: "skipped", detail: "no queries planned" });
@@ -463,9 +480,14 @@ export async function runAudit(input: AuditInput, rawEmit: Emit): Promise<AuditR
   let phoneScript = "";
   const draftSet = findings.filter((f) => f.certainty !== "needs_info");
   if (draftSet.length) {
-    ({ letter, phoneScript } = await step(emit, "letter", ["mid", "fast"], (t) =>
-      writeLetter(bill, draftSet, splitTotals(draftSet, bill).total, input.context, t),
-    ));
+    // Non-fatal: if every model is down for the letter, the user still gets the audit and can retry the letter.
+    try {
+      ({ letter, phoneScript } = await step(emit, "letter", ["mid", "fast"], (t) =>
+        writeLetter(bill, draftSet, splitTotals(draftSet, bill).total, input.context, t),
+      ));
+    } catch {
+      /* step() already emitted the error status */
+    }
   } else {
     emit({ type: "step", step: "letter", status: "skipped", detail: "nothing to dispute" });
   }

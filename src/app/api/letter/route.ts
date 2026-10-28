@@ -1,15 +1,15 @@
 import { writeLetter } from "@/lib/pipeline";
-import { hasNebiusKey } from "@/lib/llm";
+import { hasModelProvider } from "@/lib/llm";
 import type { Finding, ParsedBill } from "@/lib/types";
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 /**
  * Human-in-the-loop: regenerate the dispute letter from ONLY the findings the user approved.
  * Body: { bill, findings, total, context }
  */
 export async function POST(req: Request) {
-  if (!hasNebiusKey()) return Response.json({ error: "Server is missing NEBIUS_API_KEY" }, { status: 500 });
+  if (!hasModelProvider()) return Response.json({ error: "Server has no model provider configured" }, { status: 500 });
   let bill: ParsedBill, findings: Finding[], total: number, context: string | undefined;
   try {
     const b = await req.json();

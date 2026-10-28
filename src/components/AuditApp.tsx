@@ -85,6 +85,7 @@ export default function AuditApp() {
   const approvedTotal = useMemo(() => (bill ? cappedTotal(approvedFindings, bill) : 0), [approvedFindings, bill]);
   const signature = [...approved].sort().join(",");
   const letterStale = Boolean(result && letter && signature !== letterFor);
+  const needsLetter = Boolean(result && !letter && approved.size > 0);
 
   const toggle = (id: string) =>
     setApproved((s) => {
@@ -458,23 +459,23 @@ export default function AuditApp() {
               </div>
             )}
 
-            {result && letter && (
+            {result && (letter || needsLetter) && (
               <div>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <h3 className="font-semibold text-frost">Dispute letter</h3>
                   <div className="flex flex-wrap gap-2">
-                    {letterStale && (
+                    {(letterStale || needsLetter) && (
                       <button
                         onClick={regenerate}
                         disabled={regenerating || !approved.size}
                         className="rounded-md border border-uv/50 bg-uv/10 px-3 py-1.5 text-sm text-uv transition hover:bg-uv/20 disabled:opacity-40"
                       >
-                        {regenerating ? "Rewriting…" : "Rewrite letter for approved items"}
+                        {regenerating ? "Writing…" : needsLetter ? "Write letter for approved items" : "Rewrite letter for approved items"}
                       </button>
                     )}
                     <button
                       onClick={approveAndTrack}
-                      disabled={!approved.size || letterStale || regenerating}
+                      disabled={!approved.size || !letter || letterStale || regenerating}
                       title={letterStale ? "Rewrite the letter first so it matches your approvals" : ""}
                       className="btn-primary px-3 py-1.5 text-sm"
                     >
@@ -490,7 +491,14 @@ export default function AuditApp() {
                     </button>
                   </p>
                 )}
-                <LetterPanel result={result} letter={letter} setLetter={setLetter} phoneScript={phoneScript} regenerating={regenerating} />
+                {letter || regenerating ? (
+                  <LetterPanel result={result} letter={letter} setLetter={setLetter} phoneScript={phoneScript} regenerating={regenerating} />
+                ) : (
+                  <p className="panel p-4 text-sm text-mist">
+                    The letter couldn&apos;t be drafted automatically because the model was busy. Your findings are safe, so click{" "}
+                    <span className="text-uv">Write letter for approved items</span> to try again.
+                  </p>
+                )}
               </div>
             )}
 

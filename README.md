@@ -49,9 +49,19 @@ Each step goes to the cheapest Nemotron model that handles it well, all through 
 
 Token Factory helped in several ways:
 - **One API, four models:** moving a step to a different model is a one-line environment variable change, which let us A/B test models per step during the hackathon.
-- **Fallback chain:** if a model is unavailable or returns an error, the step automatically retries on the next tier (Ultra → Super, Nano → Super). The demo keeps working during capacity hiccups.
 - **JSON-mode prompts and a self-repair retry:** structured outputs stay reliable without a schema library.
 - **Cost:** a full audit is about 5 model calls, and most tokens go through Nano or Super. Ultra handles only the single reasoning-heavy call.
+
+### Reliability: built to stay up 24/7
+
+- **Provider failover:** every model call tries **Nebius Token Factory** first, then fails over automatically to **NVIDIA Build** (`integrate.api.nvidia.com`), which serves the same open Nemotron family. `npm run failover-test` simulates Nebius returning 401, being unreachable, and hanging. All three are answered by the fallback.
+- **Timeouts and retries:** each call has a per-tier timeout (60–120 s) and one jittered retry on 429/5xx/timeout before failing over, so a single stuck request can't stall an audit.
+- **Tier fallback:** if a whole tier fails, the step drops to the next tier (Ultra → Super, Nano → Super).
+- **Graceful degradation:**
+  - If Tavily is down, the audit still runs and price findings are marked lower confidence. Tavily retries at `basic` depth on errors.
+  - If the letter step fails, the findings are kept and the user gets a **Write letter** button.
+- **Live status:** `GET /api/health` pings every provider and Tavily, cached for 60 s. It returns `ok` / `degraded` / `down` (HTTP 503 when no model provider is up). The header badge shows it to users, and you can point an uptime monitor at it.
+- **End-to-end smoke test:** `npm run smoke [url]` runs every sample bill plus the photo/vision path and a human-approved letter rewrite against a running server, and checks extraction, research, findings, totals reconciliation, citation validity and letter output.
 
 **Other tools:** Tavily Search API (`search_depth: advanced`) supplies live, citable benchmark and legal evidence. It's deployed on Vercel. It could also run on Nebius Serverless Endpoints, since it's a single stateless Node service.
 
@@ -72,15 +82,16 @@ On the three demo samples (US ER visit, Indian hospital stay, telecom bill), it 
 
 ## Run it locally
 
-Requirements: Node.js 20+ and a Nebius Token Factory API key. A Tavily key is optional but recommended.
+Requirements: Node.js 20+ and an API key for NVIDIA Nemotron: **Nebius Token Factory** (primary) and/or **NVIDIA Build** (fallback). A Tavily key is optional but recommended.
 
 ```bash
 git clone <this-repo-url> quibillix
 cd quibillix
 npm install
-cp .env.example .env.local      # then fill in NEBIUS_API_KEY and TAVILY_API_KEY
-npm run check-models            # verifies the Nemotron model IDs on your account
+cp .env.example .env.local      # fill in NEBIUS_API_KEY, NVIDIA_API_KEY and TAVILY_API_KEY
+npm run check-models            # verifies the Nemotron model IDs on each provider
 npm run dev                     # http://localhost:3000
+npm run smoke                   # optional: end-to-end test of every feature against the running server
 npm run eval                    # optional: accuracy benchmark
 npm run e2e -- us-er            # optional: full pipeline from the CLI (us-er | in-hospital | telecom | path/to/photo.png)
 ```
@@ -89,13 +100,14 @@ Click a sample bill (US ER visit, Indian hospital stay, telecom bill), then **Au
 
 If `check-models` shows a model as `MISSING`, copy the matching NVIDIA ID from its output into `.env.local` (for example `MODEL_DEEP=...`).
 
-### Deploy (Vercel)
+### Deploy (Vercel, runs 24/7)
 
 1. Import the repo in Vercel.
-2. Add `NEBIUS_API_KEY`, `TAVILY_API_KEY` (and optionally the `MODEL_*` variables) under Project → Settings → Environment Variables.
+2. Under Project → Settings → Environment Variables, add `NEBIUS_API_KEY`, `NVIDIA_API_KEY` and `TAVILY_API_KEY`, plus the `MODEL_*` / `NVIDIA_MODEL_*` variables from `.env.example`.
 3. Deploy. The `/api/audit` route streams NDJSON and sets `maxDuration = 300`.
+4. Run `npm run smoke -- https://your-app.vercel.app`, then add `https://your-app.vercel.app/api/health` to a free uptime monitor (e.g. UptimeRobot, every 5 min).
 
-`GET /api/audit` returns which keys are configured and the model routing, which is useful for a health check.
+`GET /api/health` reports live provider status. `GET /api/audit` shows the configured provider chain and model routing.
 
 ## Architecture
 

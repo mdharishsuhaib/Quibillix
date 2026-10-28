@@ -1,4 +1,5 @@
 import AuditApp from "@/components/AuditApp";
+import StatusBadge from "@/components/StatusBadge";
 
 export default function Home() {
   return (
@@ -24,15 +25,14 @@ export default function Home() {
             it against live fair-price benchmarks and consumer law, and writes the dispute letter for you.
           </p>
         </div>
-        <p className="text-xs text-mist/80">
-          Runs on Nebius Token Factory · Nemotron Nano / Super / Ultra / Super VL · Tavily
-        </p>
+        <StatusBadge />
       </header>
       <AuditApp />
       <footer className="mt-16 border-t border-steel pt-6 text-xs text-mist/80">
         Quibillix isn&apos;t legal or medical advice. Always verify findings with your provider or insurer. Quibillix itself
-        never stores your bill — it is processed in memory and sent only to the model API (Nebius Token Factory) and, for
-        research, search queries (not your bill) go to Tavily. Remove names and account numbers if you prefer.
+        never stores your bill. It is processed in memory and sent only to the NVIDIA Nemotron model API (Nebius Token
+        Factory, or NVIDIA Build as a fallback). Only search queries, never your bill, go to Tavily. Remove names and
+        account numbers if you prefer.
       </footer>
     </main>
   );
