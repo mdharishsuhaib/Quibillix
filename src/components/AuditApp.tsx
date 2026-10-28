@@ -7,6 +7,7 @@ import type { AuditResult, Evidence, Finding, ParsedBill, StepId, StreamEvent } 
 import Pipeline, { STEPS, type StepState } from "./Pipeline";
 import { FindingCard, LetterPanel, LineItems, money } from "./Results";
 import Cases, { manualMinutes } from "./Cases";
+import { readPdf } from "@/lib/pdf";
 
 /** Client-side mirror of the server's per-line capped total, for approved subsets. */
 function cappedTotal(findings: Finding[], bill: ParsedBill) {
@@ -177,13 +178,25 @@ export default function AuditApp() {
   const onFile = async (file?: File) => {
     if (!file) return;
     setError(null);
-    if (file.type.startsWith("image/")) {
+    if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
+      try {
+        const pdf = await readPdf(file);
+        if (pdf.kind === "text") {
+          setText(pdf.text);
+          setImage(null);
+        } else {
+          setImage({ name: `${file.name} (scanned, ${pdf.pages} page${pdf.pages > 1 ? "s" : ""})`, dataUrl: pdf.dataUrl });
+        }
+      } catch (e) {
+        setError(`Couldn't read that PDF (${e instanceof Error ? e.message : e}). Try a screenshot instead.`);
+      }
+    } else if (file.type.startsWith("image/")) {
       setImage({ name: file.name, dataUrl: await fileToDataUrl(file) });
     } else if (file.type.startsWith("text/") || /\.(txt|csv|md)$/i.test(file.name)) {
       setText(await file.text());
       setImage(null);
     } else {
-      setError("Please upload a photo/screenshot (JPG, PNG, WebP) or a text file. For PDFs, take a screenshot or copy the text.");
+      setError("Please upload a PDF, a photo/screenshot (JPG, PNG, WebP) or a text file.");
     }
   };
 
@@ -324,6 +337,18 @@ export default function AuditApp() {
           >
             📷 Photo of a bill
           </button>
+          <button
+            onClick={async () => {
+              const blob = await (await fetch("/samples/utility-bill.pdf")).blob();
+              await onFile(new File([blob], "utility-bill.pdf", { type: "application/pdf" }));
+              setContext("Single-person flat. I submitted an actual meter reading of 14,250 on 30 Sept. I pay by direct debit on time every month.");
+            }}
+            disabled={running}
+            className="rounded-full border border-dashed border-cobalt/60 px-3 py-1 text-sm text-cobalt transition hover:bg-cobalt/10 disabled:opacity-40"
+            title="Tests PDF upload (text layer read in your browser)"
+          >
+            📄 PDF utility bill
+          </button>
         </div>
 
         <div className="grid gap-4 md:grid-cols-[1fr_320px]">
@@ -357,13 +382,13 @@ export default function AuditApp() {
             )}
             <div className="mt-2 flex items-center gap-3 text-sm">
               <button onClick={() => fileRef.current?.click()} className="btn-ghost px-3 py-1.5">
-                Upload photo / screenshot
+                Upload PDF / photo
               </button>
-              <span className="text-xs text-mist/70">JPG, PNG, WebP or .txt — drag & drop works too</span>
+              <span className="text-xs text-mist/70">PDF, JPG, PNG, WebP or .txt. Drag & drop works too</span>
               <input
                 ref={fileRef}
                 type="file"
-                accept="image/*,.txt,.csv,.md"
+                accept="application/pdf,.pdf,image/*,.txt,.csv,.md"
                 className="hidden"
                 onChange={(e) => onFile(e.target.files?.[0])}
               />
@@ -450,6 +475,7 @@ export default function AuditApp() {
                       <FindingCard
                         key={f.id}
                         f={f}
+                        bill={bill ?? undefined}
                         currency={currency}
                         approved={result ? approved.has(f.id) : undefined}
                         onToggle={result ? () => toggle(f.id) : undefined}

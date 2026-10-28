@@ -73,11 +73,11 @@ Return ONLY a JSON object with this exact shape:
   "lineItems": [{ "date": string|null, "code": string|null, "description": string, "quantity": number, "unitPrice": number|null, "amount": number }],
   "statedSubtotal": number | null,   // charges before tax
   "statedTaxes": number | null,      // GST / VAT / sales tax / surcharges printed below the subtotal
-  "statedAdjustments": number | null, // insurance payments, discounts, write-offs (positive number)
+  "statedAdjustments": number | null, // insurance payments, discounts, write-offs, deposits / amounts already paid, credits (positive number)
   "statedTotalDue": number | null,
   "notes": string | null
 }
-Rules: copy every charge line exactly as printed; one entry per printed line (do NOT merge repeated lines); fees printed below the subtotal (late fees, service charges) are ALSO line items, but taxes, insurance payments, discounts and adjustments are NOT; use the printed amount even if it looks wrong; numbers must be plain numbers without currency symbols or thousands separators; quantity defaults to 1.`;
+Rules: copy every charge line exactly as printed; one entry per printed line (do NOT merge repeated lines); fees printed below the subtotal (late fees, service charges) are ALSO line items, but taxes, insurance payments, deposits, amounts already paid, discounts and adjustments are NOT (sum those into statedAdjustments); use the printed amount even if it looks wrong; numbers must be plain numbers without currency symbols or thousands separators; quantity defaults to 1.`;
 
 async function extract(input: AuditInput, tier: Tier): Promise<ParsedBill> {
   const userContent: ChatMessage["content"] = input.imageDataUrl
@@ -160,7 +160,7 @@ async function triage(bill: ParsedBill, rules: Finding[], context: string | unde
     messages: [
       {
         role: "system",
-        content: `You are a billing advocate planning research. Given a bill, pick the 3-4 charges or situations most likely to be overpriced, miscoded or illegal, and write one precise web-search query for each to find (a) fair/benchmark prices (e.g. Medicare fee schedule, FAIR Health, CGHS/state rate cards, regulator tariffs) or (b) the consumer-protection rule that applies (e.g. No Surprises Act, state balance-billing laws, telecom/utility regulator rules). Include codes, the location and the year in queries. Return ONLY JSON: {"queries": ["...", "..."]}`,
+        content: `You are a billing advocate planning research. Given a bill, pick the 3-4 charges or situations most likely to be overpriced, miscoded or illegal, and write one precise web-search query for each to find (a) fair/benchmark prices (e.g. Medicare fee schedule, FAIR Health, CGHS/state rate cards, regulator tariffs) or (b) the consumer-protection rule that applies (e.g. No Surprises Act, state balance-billing laws, telecom/utility regulator rules). Include codes, the location and the year in queries. NEVER include personal data (patient/customer names, account, member, policy or claim numbers, addresses, phone numbers): queries go to a public search engine. Return ONLY JSON: {"queries": ["...", "..."]}`,
       },
       {
         role: "user",
@@ -169,7 +169,33 @@ async function triage(bill: ParsedBill, rules: Finding[], context: string | unde
     ],
   });
   const queries = Array.isArray(data.queries) ? data.queries.filter((q): q is string => typeof q === "string").slice(0, 4) : [];
-  return { queries };
+  return { queries: queries.map((q) => redactQuery(q, bill)).filter((q) => q.length > 8) };
+}
+
+/**
+ * Privacy guard: Tavily is a public web search, so queries must never carry personal identifiers.
+ * Strips the patient/account holder, account/member/claim numbers, emails, phone numbers and long digit runs.
+ * Billing codes (CPT 99285, HCPCS A4570, HSN etc.) and years are kept since they're needed for research.
+ */
+export function redactQuery(q: string, bill: Pick<ParsedBill, "patientOrAccount">) {
+  let out = q;
+  const who = bill.patientOrAccount?.trim();
+  if (who) {
+    for (const part of who.split(/[\s,/#:]+/).filter((p) => p.length >= 3)) {
+      out = out.replace(new RegExp(`\\b${part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi"), "");
+    }
+  }
+  out = out
+    .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "") // emails
+    .replace(/\+?\d[\d\s().-]{8,}\d/g, (m) =>
+      // keep runs of short tokens (billing codes, years, e.g. "99285 2026"); drop phone/account-like runs
+      m.trim().split(/\s+/).every((t) => /^\d{1,5}$/.test(t)) ? m : " ",
+    )
+    .replace(/\b(account|acct|member|policy|claim|patient|mrn|uhid|ip\s*no|invoice)\s*(no\.?|number|#|id)?\s*[:#]?\s*[A-Z0-9-]{4,}\b/gi, "")
+    .replace(/\b\d{7,}\b/g, "") // long numeric identifiers
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return out;
 }
 
 // ---------------------------------------------------------------- 5. audit
@@ -232,6 +258,8 @@ Expert checklist — actively test every one of these against the bill:
 Output discipline:
 - Output ONLY real problems. Never output a finding to say a charge is fair, normal, or within range.
 - If nothing is wrong, return {"findings": [], "summary": "..."}; a clean bill is a valid answer.
+- Price outliers need a strong case: commercial and self-pay prices are routinely 1.5–3× Medicare, and "above average" or "top of the range" is NOT disputable. Only flag price_outlier when the evidence shows the charge is at least 3× a cited benchmark (or above a legal ceiling/MRP/regulated cap), and state the multiple as "N×".
+- If the user says the prices were quoted, agreed, contracted, chosen by them or match the MRP, do NOT flag those prices.
 Rules:
 - Do NOT repeat the already-detected rule findings (they are listed for context).
 - Only flag what you can justify. Reference sources by their [number] from the evidence. Never invent URLs.
@@ -285,7 +313,31 @@ ${evidenceText}`,
           .map((r) => ({ title: r.title, url: r.url })),
       };
     });
-  return { findings: dropNoise(findings), summary: data.summary || "" };
+  return { findings: dropNoise(gatePriceOutliers(findings, context)), summary: data.summary || "" };
+}
+
+/**
+ * Deterministic gate on AI price claims (the model proposes, code decides):
+ * a price_outlier keeps its money claim only if it cites a retrieved source AND states a multiple
+ * of at least 3× the benchmark (or invokes a hard legal ceiling: MRP, regulated cap, NPPA, rate card).
+ * Anything weaker is downgraded to "needs info" with no amount (and dropped as noise if it has nothing to ask).
+ */
+export function gatePriceOutliers(findings: Finding[], context?: string): Finding[] {
+  // The consumer's own statement that prices were agreed beats a web benchmark (unit mix-ups are common, e.g. per tablet vs per strip).
+  const userAgreedPrices = /\b(quoted|agreed|contract(ed)?|as per (our )?contract|chose|match(es|ed)? (the )?(MRP|quote|price))/i.test(context || "");
+  return findings.map((f) => {
+    const downgrade = { ...f, estimatedOvercharge: 0, certainty: "needs_info" as const, confidence: "low" as const };
+    // Missing paperwork (registration numbers, invoice details) is a request for information, not an overcharge.
+    if (f.kind === "other" && /\bmissing\b.*\b(detail|number|information|registration|reg\.? no)/i.test(f.title)) return downgrade;
+    if (f.kind !== "price_outlier") return f;
+    if (userAgreedPrices) return downgrade;
+    const text = `${f.title} ${f.explanation}`;
+    const multiples = [...text.matchAll(/(\d+(?:\.\d+)?)\s*(?:[×x]\b|times\b)/gi)].map((m) => parseFloat(m[1]));
+    const maxMult = multiples.length ? Math.max(...multiples) : 0;
+    const legalCeiling = /\b(MRP|ceiling price|price cap|NPPA|DPCO|regulated (rate|tariff)|rate card|statutory)\b/i.test(text);
+    const strong = f.citations.length > 0 && (maxMult >= 3 || legalCeiling);
+    return strong ? f : downgrade;
+  });
 }
 
 /** A "price outlier" with no excess isn't an issue, it's commentary. Keep zero-value items only when they request itemization/records. */
@@ -355,8 +407,13 @@ function mergeFindings(rules: Finding[], ai: Finding[]) {
   const sameLines = (a: Finding, b: Finding) =>
     a.lineItemIds.length > 0 && a.lineItemIds.length === b.lineItemIds.length && a.lineItemIds.every((id) => b.lineItemIds.includes(id));
   const aiKept = dedupeAgainstRules(ai, rules);
-  const rulesKept = rules.filter((r) => !(r.kind === "late_fee" && aiKept.some((f) => sameLines(f, r) && f.estimatedOvercharge > 0)));
-  return [...rulesKept, ...aiKept];
+  const replacedBy = (r: Finding) => aiKept.find((f) => sameLines(f, r) && f.estimatedOvercharge > 0);
+  const rulesKept = rules.filter((r) => !(r.kind === "late_fee" && replacedBy(r)));
+  // An AI finding that replaces a junk-fee rule keeps the rule's classification (it's still a discretionary fee).
+  const aiFinal = aiKept.map((f) =>
+    rules.some((r) => r.kind === "late_fee" && replacedBy(r) === f) && f.kind !== "not_received" ? { ...f, kind: "late_fee" as const } : f,
+  );
+  return [...rulesKept, ...aiFinal];
 }
 
 /** Drop AI findings that merely restate a deterministic rule finding (same kind, same lines). */
@@ -365,6 +422,8 @@ function dedupeAgainstRules(ai: Finding[], rules: Finding[]) {
   return ai.filter((f) => {
     // Bill-level AI finding restating a bill-level rule finding (same amount) — e.g. "balance due exceeds reconciled amount"
     if (!f.lineItemIds.length && rules.some((r) => !r.lineItemIds.length && Math.abs(r.estimatedOvercharge - f.estimatedOvercharge) < 0.01)) return false;
+    // Restating a subtotal / amount-due reconciliation the rules engine already proved
+    if (/sub-?total|amount due|balance due|total due|reconcil/i.test(f.title) && rules.some((r) => !r.lineItemIds.length && r.kind === "math_error")) return false;
     const isTax = /\b(tax|gst|vat)\b/i.test(f.title);
     if (isTax && rules.some((r) => /tax/i.test(r.title))) return false;
     // Same per-day over-count already caught by the stay-length rule

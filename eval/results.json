@@ -1,0 +1,24 @@
+{
+  "summary": {
+    "bills": 21,
+    "pipelineErrors": 0,
+    "recall": "24/25 (96%)",
+    "precisionOnLabelledLines": "27/29 (93%)",
+    "falsePositivesOnKnownLegitLines": 2,
+    "cleanControlBills": "5/5 came back clean (0 money-bearing findings)",
+    "unlabelledFindings": 2,
+    "arithmeticCorrectness": "6/6 (100%)",
+    "aiFindingsWithCitation": "16/18 (89%)",
+    "citationsFromRealTavilyResults": "57/57 (100%)",
+    "disputeLettersComplete": "16/16 (100%)",
+    "avgSecondsPerBill": 42,
+    "medianSecondsPerBill": 38,
+    "manualBaselineMinutesTotal": 894,
+    "agentMinutesTotal": 15,
+    "providers": [
+      "NVIDIA Build"
+    ],
+    "ranAt": "2026-10-28T18:39:30.130Z"
+  },
+  "detail": "\n## clinic-us  (48s, 6 lines)\n  ✔ duplicate CMP\n  ✔ CBC math (2×48≠126) (claimed 30, true 30)\n  ✔ specimen handling bundled into venipuncture\n  ✔ amount due 271 ≠ 691 − 420 − 30 = 241 (claimed 30, true 30)\n  letter references 4/4 disputed items ✔\n\n## utility-uk  (45s, 5 lines)\n  ✘ estimated read vs actual (240 kWh, not 600)\n  ✔ 31 standing-charge days in a 30-day period\n  ✔ late fee despite on-time direct debit\n  ✔ paper bill fee\n  ~ unlabelled findings: Smart meter rental charge — suppliers cannot charge for smart meter installation or rental (4.5)\n  letter references 5/5 disputed items ✔\n\n## clean-dental  (16s, 3 lines, CLEAN CONTROL)\n  ✔ clean bill → 0 money-bearing finding(s)\n  no letter (nothing to dispute)\n\n## urgent-care-math  (55s, 4 lines)\n  ✔ ketorolac math (2×18≠54) (claimed 18, true 18)\n  ✘ FALSE POSITIVE on known-legit lines: Sterile gauze pads (A6402) likely bundled into wound repair\n  letter references 2/2 disputed items ✔\n\n## subtotal-inflated  (43s, 3 lines)\n  ✔ subtotal 205 ≠ lines 155 (+50) (claimed 50, true 50)\n  ~ unlabelled findings: Hot/cold pack (97010) is a bundled service and should not be billed separately (15)\n  letter references 2/2 disputed items ✔\n\n## duplicate-telecom  (22s, 4 lines)\n  ✔ plan billed twice\n  letter references 1/1 disputed items ✔\n\n## total-due-wrong  (29s, 3 lines)\n  ✔ balance due 189.60 ≠ 149.60 (claimed 40, true 40)\n  letter references 1/1 disputed items ✔\n\n## in-room-days  (74s, 5 lines)\n  ✔ room rent 4 days for 3 nights\n  ✔ nursing 4 days for 3 nights\n  letter references 3/3 disputed items ✔\n\n## standing-days  (37s, 2 lines)\n  ✔ 33 standing days in 30-day period (claimed 0.95, true 0.95)\n  ✘ FALSE POSITIVE on known-legit lines: Gas unit rate 85% above Ofgem price cap\n  letter references 3/3 disputed items ✔\n\n## in-gst-clinic  (66s, 3 lines)\n  ✔ 18% GST on exempt healthcare\n  letter references 1/1 disputed items ✔\n\n## us-sales-tax-medical  (69s, 2 lines)\n  ✔ sales tax on medical services\n  letter references 1/1 disputed items ✔\n\n## late-fee-autopay  (33s, 3 lines)\n  ✔ late fee despite on-time autopay\n  letter references 1/1 disputed items ✔\n\n## cramming  (24s, 3 lines)\n  ✔ unauthorised premium SMS (cramming)\n  ✔ unauthorised third-party content\n  letter references 2/2 disputed items ✔\n\n## icu-not-received  (47s, 5 lines)\n  ✔ ICU charged but no ICU stay\n  letter references 1/1 disputed items ✔\n\n## er-upcoding  (39s, 3 lines)\n  ✔ level-5 ER for minor rash\n  letter references 1/1 disputed items ✔\n\n## unbundled-surgery  (38s, 3 lines)\n  ✔ diagnostic arthroscopy bundled into 29881\n  letter references 1/1 disputed items ✔\n\n## saas-overbilled-seats  (22s, 2 lines)\n  ✔ 32 seats billed vs 25 contracted\n  ✔ onboarding charged though free\n  letter references 2/2 disputed items ✔\n\n## clean-utility  (19s, 2 lines, CLEAN CONTROL)\n  ✔ clean bill → 0 money-bearing finding(s)\n  no letter (nothing to dispute)\n\n## clean-telecom  (29s, 2 lines, CLEAN CONTROL)\n  ✔ clean bill → 0 money-bearing finding(s)\n  no letter (nothing to dispute)\n\n## clean-pharmacy-in  (85s, 2 lines, CLEAN CONTROL)\n  ✔ clean bill → 0 money-bearing finding(s)\n  no letter (nothing to dispute)\n\n## clean-invoice  (34s, 1 lines, CLEAN CONTROL)\n  ✔ clean bill → 0 money-bearing finding(s)\n  no letter (nothing to dispute)"
+}

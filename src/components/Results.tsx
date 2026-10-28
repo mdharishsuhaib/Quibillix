@@ -41,13 +41,16 @@ export function FindingCard({
   currency,
   approved,
   onToggle,
+  bill,
 }: {
   f: Finding;
   currency: string;
   approved?: boolean;
   onToggle?: () => void;
+  bill?: ParsedBill;
 }) {
   const c = CERTAINTY[f.certainty];
+  const lines = bill ? bill.lineItems.filter((li) => f.lineItemIds.includes(li.id)) : [];
   return (
     <div className={`panel p-4 transition ${approved === false ? "opacity-45" : "hover:border-[#33445f]"}`}>
       <div className="flex flex-wrap items-center gap-2">
@@ -76,6 +79,34 @@ export function FindingCard({
       </div>
       <h4 className="mt-2 font-medium text-frost">{f.title}</h4>
       <p className="mt-1 text-sm text-mist">{f.explanation}</p>
+      {lines.length > 0 && (
+        <div className="mt-2 overflow-x-auto rounded-md border border-steel bg-ink/60">
+          <p className="border-b border-steel px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-mist/70">Evidence from your bill</p>
+          <table className="w-full font-mono text-[11px]">
+            <tbody>
+              {lines.map((li) => {
+                const expected = li.unitPrice != null ? Math.round(li.unitPrice * li.quantity * 100) / 100 : null;
+                const mathOff = expected != null && Math.abs(expected - li.amount) > 0.5;
+                return (
+                  <tr key={li.id} className="border-t border-steel/50 first:border-0">
+                    <td className="px-2 py-1 text-mist/60">{li.id}</td>
+                    <td className="px-2 py-1 text-mist">{li.code ?? ""}</td>
+                    <td className="px-2 py-1 text-frost">{li.description}</td>
+                    <td className="px-2 py-1 text-right text-mist">
+                      {li.quantity}
+                      {li.unitPrice != null && ` × ${li.unitPrice.toFixed(2)}`}
+                    </td>
+                    <td className={`px-2 py-1 text-right ${c.amount}`}>
+                      {money(li.amount, currency)}
+                      {mathOff && <span className="block text-[10px] text-mint">should be {money(expected!, currency)}</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
       {f.citations.length > 0 && (
         <ul className="mt-2 space-y-0.5">
           {f.citations.map((c) => (

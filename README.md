@@ -6,7 +6,7 @@
 
 *Quibillix* (quibble + bill + x) is an AI-powered bill verification and dispute agent.
 
-**Quibillix turns checking a bill from hours of manual review into an agentic workflow: Check → Investigate → Build the dispute → Resolve with oversight.** Upload a photo or paste a medical, hospital, telecom or utility bill. NVIDIA Nemotron agents on **Nebius Token Factory** verify every line, investigate suspicious charges against live benchmarks and consumer law (via **Tavily**), and draft an evidence-backed dispute. You approve each item before anything goes out, then track the case through to the money you actually recover.
+**Quibillix turns checking a bill from hours of manual review into an agentic workflow: Check → Investigate → Build the dispute → Resolve with oversight.** Upload a PDF or photo, or paste a medical, hospital, telecom, utility or business bill. NVIDIA Nemotron agents on **Nebius Token Factory** verify every line, investigate suspicious charges against live benchmarks and consumer law (via **Tavily**), and draft an evidence-backed dispute. You approve each item before anything goes out, then track the case through to the money you actually recover.
 
 - **Live demo:** `<your-vercel-url>`
 - **Demo video:** `<your-youtube-url>`
@@ -67,16 +67,30 @@ Token Factory helped in several ways:
 
 ## Measured accuracy
 
-`npm run eval` runs a ground-truth benchmark (`eval/cases.ts`): bills with **planted errors** plus a **clean bill** that must come back clean. Scoring is strict. A planted error only counts as caught if a money-bearing finding sits on the right line, with an accepted issue type and, where required, the right reason.
+`npm run eval` runs a labelled benchmark of **21 bills** (`eval/cases.ts`, `eval/cases-more.ts`), covering US/UK/India, medical, hospital, utility, telecom and B2B invoices. It has **25 planted errors**: arithmetic, duplicates, subtotal/balance mistakes, stay and billing-period day counts, tax on exempt healthcare, junk fees, cramming, services never received, upcoding, unbundling, and seats billed over contract. It also includes **5 clean control bills** that must come back clean. Scoring is strict: a planted error only counts if a money-bearing finding sits on the right line, with an accepted issue type and, where required, the right reason. Results are written to `eval/results.json`.
 
-| Metric | Result (latest run, NVIDIA API endpoint) |
+| Metric | Result (latest run: 21 bills, NVIDIA Build endpoint) |
 | --- | --- |
-| Planted errors caught (recall) | **6 / 7 (86%)** |
-| False positives on known-legit lines | **0** |
-| Clean bill | **0 findings** ✔ |
-| Avg. time per bill | ~56 s (vs. an estimated 30–60 min of manual line-by-line review) |
+| Planted errors caught (recall) | **24 / 25 (96%)** |
+| Precision on labelled lines | **27 / 29 (93%)** |
+| Clean control bills | **5 / 5 came back clean** (0 money-bearing findings) |
+| False positives on known-legit lines | 2 (both "possibly bundled" supply items) |
+| Arithmetic correctness (claimed vs. true amount) | **6 / 6 (100%)** |
+| Citations that are real retrieved Tavily URLs | **57 / 57 (100%)** |
+| AI findings carrying ≥1 citation | 16 / 18 (89%) |
+| Dispute letters covering every disputed item | **16 / 16 (100%)** |
+| Pipeline errors | 0 |
+| Time | avg **42 s**, median 38 s per bill (15 min total vs. an estimated **~15 h** of manual review at 4 min/line + 30 min/letter) |
 
-The miss is honest: when a utility bill used an *estimated* meter reading but the user reported an actual one, Quibillix flagged the tariff but didn't recompute usage from the actual reading. That's next on the list.
+The remaining miss: when a utility bill used an *estimated* meter reading but the user reported an actual one, Quibillix flagged the fees but didn't recompute usage from the actual reading.
+
+**What made precision go from 66% to 93%** (first run of the expanded set → latest run):
+- **The model proposes, code decides.** A `price_outlier` only keeps a money claim if it cites a retrieved source *and* states a multiple of at least 3× the benchmark, or invokes a hard legal ceiling (MRP, NPPA, regulated cap). Weaker claims are downgraded to "needs info" (`gatePriceOutliers`).
+- **The user's own statement wins.** If the user says prices were quoted, contracted or match the MRP, benchmark-based price claims are dropped.
+- **No double-reporting** of totals the rules engine already proved.
+- **Deposits and amounts already paid** are extracted as adjustments.
+
+`npm test` runs offline unit tests for the rules engine, totals capping, the price gate and the privacy redactor.
 
 On the three demo samples (US ER visit, Indian hospital stay, telecom bill), it catches the duplicate X-ray, upcoded ER level, No Surprises Act balance billing, ICU charge with no ICU stay, extra room-days, GST on exempt healthcare, cramming add-ons and junk fees.
 

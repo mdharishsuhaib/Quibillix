@@ -31,14 +31,14 @@ Billing errors are common, and the people who can least afford them are the ones
 ## What it does
 Quibillix turns checking a bill into an agentic workflow with a human in charge of every decision:
 
-1. **Check:** reads a photo or text of a medical, hospital, telecom or utility bill and verifies every line with deterministic checks (arithmetic, duplicates, totals, day counts, tax on exempt services, junk fees).
-2. **Investigate:** NVIDIA Nemotron agents research live benchmarks and consumer law through Tavily, then audit for upcoding, unbundling, price outliers, balance billing and services never received. Every claim cites a real retrieved source.
+1. **Check:** reads a PDF, photo or text of a medical, hospital, telecom, utility or business bill and verifies every line with deterministic checks (arithmetic, duplicates, totals, day counts, tax on exempt services, junk fees).
+2. **Investigate:** NVIDIA Nemotron agents research live benchmarks and consumer law through Tavily, then audit for upcoding, unbundling, price outliers, balance billing and services never received. Every claim cites a real retrieved source. Search queries are scrubbed of names, account and claim numbers before they leave the server, and the bill itself never goes to the search engine.
 3. **Build the dispute:** drafts an evidence-backed letter and phone script. Errors are stated as errors, suspicions as charges to justify, and gaps as requests for records.
 4. **Resolve with oversight:** the user approves or rejects each finding, and the letter is rewritten for only what they approved. The case is then tracked from Draft to Resolved, with the amount actually recovered and a timestamped audit trail of every agent and human decision.
 
 **Honest numbers.** Every finding is labelled **Confirmed error** (provable from the bill's own numbers, decided by code, never by the AI), **Suspected overcharge**, or **Needs info**. The dashboard keeps *flagged*, *confirmed*, *approved* and *actually recovered* money separate, plus estimated review time saved.
 
-**Measured accuracy.** On a ground-truth benchmark of bills with planted errors plus a clean control bill, Quibillix caught **6 of 7 planted errors** with **0 false positives**, and the clean bill came back with **no findings**. Average time is about 1 minute per bill, against an estimated 30–60 minutes of manual review. `npm run eval` reproduces this.
+**Measured accuracy.** On a labelled benchmark of **21 bills** (US/UK/India; medical, utility, telecom and B2B invoices) with **25 planted errors** and **5 clean control bills**, Quibillix caught **24 of 25 planted errors (96%)** with **93% precision**. All **5 clean bills came back clean**, claimed amounts were **exactly right on 6 of 6** arithmetic errors, and **57 of 57 citations** pointed to real retrieved sources. Each bill took **42 s** on average, so the whole set took 15 minutes against an estimated ~15 hours of manual review. `npm run eval` reproduces this.
 
 It works across countries and currencies. The samples include a US ER bill, an Indian private-hospital bill (INR, read from a photo) and a US telecom bill.
 
@@ -55,13 +55,15 @@ Token Factory's OpenAI-compatible API let us route by tier and add an automatic 
 
 ## Challenges we ran into
 - **Getting LLMs to do arithmetic reliably.** We moved the math out of the model entirely into a rules engine and passed those results into the audit as facts. Only code can mark a finding "confirmed".
+- **Over-eager price claims.** On our expanded benchmark, the first run flagged "1.8× Medicare" on legitimate visits and failed 3 of 5 clean bills. Commercial prices are *normally* above Medicare. We added a deterministic evidence gate (≥3× a cited benchmark or a legal ceiling) and let the user's own "the price was quoted/agreed" override web benchmarks. Clean bills went from 2/5 to 5/5.
 - **Hallucinated citations.** We give the model a numbered evidence list and map its numbers back to real URLs on the server. If a source wasn't retrieved, it can't be cited.
 - **Double counting.** Several findings can hit the same line, so totals are capped per line and never count more than the line itself.
 - **Reasoning latency.** With thinking enabled, the Nemotron models took 5+ minutes per audit, and on one run the letter came back empty because reasoning used up the token budget. Disabling thinking (`chat_template_kwargs.enable_thinking=false`) cut a full audit to about 1–2 minutes. On our benchmark, Ultra was *more* thorough in non-thinking mode.
 - **"Everything looks fine" noise.** Early runs listed "this charge is within range" as findings. We tightened the prompt and filter zero-value commentary, so the clean control bill now returns zero findings.
 
 ## Accomplishments that we're proud of
-- **Measured, not claimed:** 6/7 planted errors caught, 0 false positives, and the clean bill came back clean (`npm run eval`).
+- **Measured, not claimed:** 24 of 25 planted errors caught, 93% precision, 5 of 5 clean bills clean, 100% of citations real (`npm run eval`).
+- **The model proposes, code decides:** arithmetic, totals and day counts come from a rules engine, and AI price claims must clear a deterministic evidence gate. Precision went from 66% to 93% without losing recall.
 - **A full loop, not a chatbot:** check → investigate → dispute → human approval → tracking → recovered amount, with an audit trail.
 - **US ER sample:** flags the duplicate X-ray, supplies arithmetic (3 × $65 ≠ $235), a level-5 ER code for a sprained ankle and No Surprises Act balance billing, citing sources for each.
 - **Indian hospital sample (read from a photo):** flags an ICU charge with no ICU stay, 4 room-days billed for 3 nights, GST on GST-exempt healthcare, platelets priced around 3× the state rate, and a 10% "service charge".
@@ -70,7 +72,7 @@ Token Factory's OpenAI-compatible API let us route by tier and add an automatic 
 **TODO:** write this in your own words (e.g. which Nemotron model surprised you, and what model routing did to cost and latency).
 
 ## What's next for Quibillix
-- PDF upload and multi-page EOB + itemized-bill reconciliation
+- Multi-document reconciliation (EOB vs itemized bill, invoice vs PO/contract)
 - Insurer-specific appeal templates and deadline tracking
 - Running background follow-ups as Nebius Serverless Jobs (e.g. re-checking a corrected bill)
 - A hosted Nebius Serverless Endpoint deployment
@@ -108,18 +110,25 @@ Token Factory's OpenAI-compatible API let us route by tier and add an automatic 
 | 1:05–1:35 | **Untick** one finding → "Rewrite letter for approved items" → letter updates | "Nothing goes out without me. I reject what I'm not sure about, and the agent rewrites the dispute for exactly what I approved." |
 | 1:35–1:55 | **Approve & track** → My disputes: status, audit trail, log "recovered" | "Then it tracks the case to resolution, with an audit trail of every agent and human decision, and the money I actually got back." |
 | 1:55–2:20 | **📷 Photo of a bill** (Indian hospital) → results | "It reads photos with Nemotron Super VL, in any currency. It catches an ICU charge with no ICU stay, extra room-days, and GST on GST-exempt healthcare." |
-| 2:20–2:45 | Terminal: `npm run eval` summary; pipeline sidebar model names | "We measured it. On bills with planted errors it caught 6 of 7, with zero false positives, and a clean bill stays clean. Each step uses the right-sized Nemotron, all through one Token Factory API." |
+| 2:20–2:45 | Terminal: `npm run eval` summary; pipeline sidebar model names | "We measured it. On 21 labelled bills it caught 24 of 25 planted errors, and all five clean bills stayed clean. Every citation is a real source. Each step uses the right-sized Nemotron, all through Nebius Token Factory." |
 | 2:45–3:00 | Value dashboard | "Billing errors cost people money every day. Quibillix gives everyone a billing advocate. Try it at [URL]." |
 
 Recording tips: use 1080p, zoom the browser to 110–125%, and do one dry run first so the Ultra step isn't cold. Use no copyrighted music (YouTube Audio Library is safe). Set the video to **Public**.
 
 ---
 
-## Final checklist
-- [ ] `NEBIUS_API_KEY` works and `npm run check-models` shows all four models `OK`
-- [ ] Tavily key added (needed for the **Best Use of Tavily** bonus prize)
-- [ ] All three samples tested end to end locally
+## Final checklist (deadline: **Oct 30, 2026, 10:30 PM IST**)
+
+**Priority 0: compliance**
+- [ ] **Nebius Token Factory key** in `NEBIUS_API_KEY`. `npm run check-models` shows the Nebius models `OK`. *(One real runtime inference call through Token Factory satisfies the Nebius requirement. NVIDIA models served by another provider do NOT.)*
+- [ ] Run one audit and confirm the pipeline sidebar shows `… · Nebius Token Factory` for each step and the header badge says "Nemotron via Nebius Token Factory". Check the Token Factory usage page shows the calls.
+- [ ] If Token Factory can't be provisioned from India, ask the Nebius team on the hackathon Discord. Don't work around regional restrictions.
+- [ ] Re-run `npm run eval` on Nebius, then paste the new numbers into the README and this file.
+
+**Submission**
+- [ ] Tavily key added (needed for the **Best Use of Tavily** bonus prize). The research step shows in the demo.
+- [ ] `npm run smoke` passes locally
 - [ ] Repo pushed to GitHub, **public**, MIT license showing in the About sidebar
-- [ ] Deployed to Vercel with env vars, demo URL tested in an incognito window
-- [ ] Video uploaded to YouTube as **Public**, under 3:00
-- [ ] Devpost: track = Best Apps and Agents, all fields filled, feedback written, **Submit** clicked before **Oct 30, 10:30 PM IST**
+- [ ] Deployed to Vercel with all env vars; `npm run smoke -- <url>` passes; demo URL tested in an incognito window
+- [ ] Video uploaded to YouTube as **Public**, under 3:00, showing the real app and naming Nebius Token Factory + Nemotron
+- [ ] Devpost: track = Best Apps and Agents, all fields filled, feedback written, built-during-hackathon explanation included, **Submit** clicked

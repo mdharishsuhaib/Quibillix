@@ -3,12 +3,14 @@
  * Each planted issue lists the line it lives on and the kinds we accept as a correct detection.
  */
 import type { IssueKind } from "../src/lib/types";
+import { MORE_CASES } from "./cases-more";
 
 export interface Planted {
   label: string;
   match: RegExp; // matches the line description the issue lives on ("" = bill-level)
   kinds: IssueKind[];
   mustMention?: RegExp; // the finding's title/explanation must show it understood WHY (not just hit the line)
+  amount?: number; // exact provable overcharge, for arithmetic-correctness scoring
 }
 
 export interface EvalCase {
@@ -39,8 +41,9 @@ COPAY RECEIVED                                                     -30.00
 AMOUNT DUE                                                         271.00`,
     planted: [
       { label: "duplicate CMP", match: /METABOLIC/i, kinds: ["duplicate"] },
-      { label: "CBC math (2×48≠126)", match: /CBC/i, kinds: ["math_error"] },
+      { label: "CBC math (2×48≠126)", match: /CBC/i, kinds: ["math_error"], amount: 30 },
       { label: "specimen handling bundled into venipuncture", match: /SPECIMEN/i, kinds: ["unbundling", "other", "price_outlier"] },
+      { label: "amount due 271 ≠ 691 − 420 − 30 = 241", match: /^$/, kinds: ["math_error"], amount: 30 },
     ],
     clean: [/PREVENTIVE/i, /VENIPUNCTURE/i],
   },
@@ -83,4 +86,5 @@ AMOUNT DUE                                                   247.00`,
     planted: [],
     clean: [/EVALUATION/i, /PROPHYLAXIS/i, /BITEWING/i],
   },
+  ...MORE_CASES,
 ];

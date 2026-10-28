@@ -10,12 +10,14 @@
     "check-models": "node scripts/check-models.mjs",
     "check-secrets": "node scripts/check-secrets.mjs",
     "smoke": "node scripts/smoke.mjs",
+    "test": "tsx scripts/unit.ts && tsx scripts/test-redact.ts",
     "failover-test": "tsx scripts/failover-test.ts",
     "eval": "tsx eval/run.ts",
     "e2e": "tsx scripts/e2e.ts"
   },
   "dependencies": {
     "next": "16.4.3",
+    "pdfjs-dist": "^6.4.299",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
