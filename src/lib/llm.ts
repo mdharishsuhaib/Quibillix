@@ -42,15 +42,26 @@ function stripReasoning(text: string) {
   return text.replace(/<think>[\s\S]*?<\/think>/gi, "").replace(/^[\s\S]*?<\/think>/i, "").trim();
 }
 
+/**
+ * Nemotron 3.x models can "think" before answering. In our tests on billing audits, the
+ * non-thinking mode of Ultra was ~2x faster AND more thorough (it worked through the expert
+ * checklist instead of stopping early), so thinking is off by default.
+ * Enable it per tier with THINK_TIERS (comma-separated), e.g. THINK_TIERS=deep
+ */
+const THINK_TIERS = new Set((process.env.THINK_TIERS ?? "none").split(",").map((s) => s.trim()));
+
 export async function chat({ tier, messages, temperature = 0.2, maxTokens = 4096, json = false }: ChatOptions) {
   const key = process.env.NEBIUS_API_KEY;
   if (!key) throw new Error("NEBIUS_API_KEY is not set");
 
+  const thinking = THINK_TIERS.has(tier);
   const body: Record<string, unknown> = {
     model: MODELS[tier],
     messages,
     temperature,
-    max_tokens: maxTokens,
+    // Reasoning tokens count against max_tokens, so leave headroom when thinking is on.
+    max_tokens: thinking ? maxTokens + 8000 : maxTokens,
+    chat_template_kwargs: { enable_thinking: thinking },
   };
   if (json) body.response_format = { type: "json_object" };
 
@@ -62,19 +73,28 @@ export async function chat({ tier, messages, temperature = 0.2, maxTokens = 4096
     });
 
   let res = await call(body);
-  // Some models reject response_format; retry once without it.
-  if (!res.ok && json && res.status === 400) {
+  // Transient capacity errors: wait briefly and retry once.
+  if (res.status === 429 || res.status === 503) {
+    await new Promise((r) => setTimeout(r, 2500));
+    res = await call(body);
+  }
+  // Some deployments reject optional params; retry once with a minimal payload.
+  if (!res.ok && res.status === 400) {
     delete body.response_format;
+    delete body.chat_template_kwargs;
     res = await call(body);
   }
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
-    throw new Error(`Token Factory ${res.status} (${MODELS[tier]}): ${errText.slice(0, 300)}`);
+    throw new Error(`Model API ${res.status} (${MODELS[tier]}): ${errText.slice(0, 300)}`);
   }
   const data = await res.json();
   const msg = data?.choices?.[0]?.message;
-  const text: string = msg?.content ?? "";
-  return { text: stripReasoning(text), model: MODELS[tier], usage: data?.usage };
+  const text = stripReasoning(msg?.content ?? "");
+  if (!text) {
+    throw new Error(`Empty response from ${MODELS[tier]} (finish_reason=${data?.choices?.[0]?.finish_reason})`);
+  }
+  return { text, model: MODELS[tier], usage: data?.usage };
 }
 
 /** Extract the first JSON object from a model response (tolerates code fences / prose). */

@@ -17,6 +17,8 @@ export interface ParsedBill {
   payer?: string; // insurer, if any
   location?: string; // city / state / country, used for fair-price research
   statementDate?: string;
+  admissionDate?: string; // inpatient stays only (ISO yyyy-mm-dd)
+  dischargeDate?: string;
   currency: string;
   lineItems: LineItem[];
   statedSubtotal?: number;

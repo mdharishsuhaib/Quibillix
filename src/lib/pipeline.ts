@@ -60,6 +60,8 @@ Return ONLY a JSON object with this exact shape:
   "payer": string | null,            // insurer name if shown
   "location": string | null,         // city/state/country of the provider if shown
   "statementDate": string | null,
+  "admissionDate": string | null,    // inpatient stays only, ISO yyyy-mm-dd
+  "dischargeDate": string | null,    // inpatient stays only, ISO yyyy-mm-dd
   "currency": string,                // ISO code, e.g. "USD", "INR"
   "lineItems": [{ "date": string|null, "code": string|null, "description": string, "quantity": number, "unitPrice": number|null, "amount": number }],
   "statedSubtotal": number | null,   // charges before tax
@@ -101,6 +103,8 @@ function normalizeBill(raw: Record<string, unknown>): ParsedBill {
     payer: s(raw.payer),
     location: s(raw.location),
     statementDate: s(raw.statementDate),
+    admissionDate: s(raw.admissionDate),
+    dischargeDate: s(raw.dischargeDate),
     currency: s(raw.currency) || "USD",
     lineItems: items
       .map((li: Record<string, unknown>, i: number) => ({
@@ -205,14 +209,26 @@ Issue kinds: ${ISSUE_KINDS.join(", ")}.
 - unbundling: components billed separately that should be included in a bundled/global code or room charge.
 - balance_billing: billing the patient for amounts the law or the insurer contract says they shouldn't owe.
 - not_received: items the user context suggests were never provided.
+Expert checklist — actively test every one of these against the bill:
+- Day counts: room/nursing/monitoring/consultation days vs. the actual admission→discharge nights (discharge day is usually not billable).
+- Services the user context says didn't happen (e.g. ICU, extra visits, tests).
+- Severity/level codes vs. what actually happened (ER levels 99281-99285, E/M levels).
+- Routine supplies, consumables, PPE, gloves, admission/registration, documentation and "service charges" that are normally bundled into room/facility fees or are non-payable/non-chargeable (e.g. IRDAI non-payable items list in India).
+- Taxes applied to exempt services (e.g. healthcare services are GST-exempt in India; medical care is generally not sales-taxed in the US).
+- Percentage surcharges stacked on top of other charges.
+- Drug and consumable prices vs. MRP / retail / ceiling prices.
+- Out-of-network or balance billing that consumer law prohibits (No Surprises Act, state laws, insurer cashless agreements).
+- Third-party add-ons and "cramming" in telecom/utility bills; fees after on-time autopay.
 Rules:
 - Do NOT repeat the already-detected rule findings (they are listed for context).
 - Only flag what you can justify. Reference sources by their [number] from the evidence. Never invent URLs.
-- estimatedOvercharge = the realistic amount that should come off the bill (≤ the line amount), in the bill's currency.
+- estimatedOvercharge = the realistic amount that should come off the bill (≤ the line amount), in the bill's currency. Be conservative and credible: for a price outlier, it's the excess over a fair price, not the whole line. For items that merely need itemization or verification (e.g. a lump-sum "misc" line), use confidence "low" and estimatedOvercharge 0 — the letter will still request itemization.
+- Check the stated taxes too: if tax is charged on exempt services or at a higher rate than applies, flag it with lineItemIds [] and the excess tax as estimatedOvercharge.
+- Pick the most accurate kind (a service never provided is "not_received", not "price_outlier").
 - Be concrete: cite the line id, the code, the benchmark and why.
 Return ONLY JSON:
 {"findings":[{"kind":"...","title":"short title","lineItemIds":["L3"],"explanation":"2-4 sentences","estimatedOvercharge":123.45,"confidence":"high|medium|low","sources":[1,3]}],
- "summary":"2-3 sentence plain-English verdict for the consumer"}`,
+ "summary":"2-3 sentence plain-English verdict for the consumer (do NOT state a combined total — the app computes it)"}`,
       },
       {
         role: "user",
@@ -260,7 +276,7 @@ async function writeLetter(bill: ParsedBill, findings: Finding[], totalDisputabl
   const { text } = await chat({
     tier,
     temperature: 0.4,
-    maxTokens: 3000,
+    maxTokens: 6000,
     messages: [
       {
         role: "system",
@@ -280,9 +296,48 @@ ${findings.map((f, i) => `${i + 1}. [${f.kind}] ${f.title} — lines ${f.lineIte
       },
     ],
   });
-  const letter = text.split("===PHONE===")[0].replace("===LETTER===", "").trim();
-  const phoneScript = (text.split("===PHONE===")[1] || "").trim();
+  return splitLetter(text);
+}
+
+/** Robustly split "===LETTER=== … ===PHONE=== …" (models sometimes reorder or restyle the markers). */
+export function splitLetter(text: string) {
+  const L = /=+\s*LETTER\s*=+/i;
+  const P = /=+\s*PHONE(\s*SCRIPT)?\s*=+/i;
+  const li = text.search(L);
+  const pi = text.search(P);
+  const strip = (s: string) => s.replace(L, "").replace(P, "").trim();
+  let letter = "";
+  let phoneScript = "";
+  if (pi === -1) {
+    letter = strip(text);
+  } else if (li === -1 || li < pi) {
+    letter = strip(text.slice(0, pi));
+    phoneScript = strip(text.slice(pi));
+  } else {
+    phoneScript = strip(text.slice(pi, li));
+    letter = strip(text.slice(li));
+  }
+  if (!letter) throw new Error("Letter step returned no letter");
   return { letter, phoneScript };
+}
+
+/** Drop AI findings that merely restate a deterministic rule finding (same kind, same lines). */
+function dedupeAgainstRules(ai: Finding[], rules: Finding[]) {
+  const RULE_KINDS = new Set(["math_error", "duplicate", "late_fee"]);
+  return ai.filter((f) => {
+    const isTax = /\b(tax|gst|vat)\b/i.test(f.title);
+    if (isTax && rules.some((r) => /tax/i.test(r.title))) return false;
+    // Same per-day over-count already caught by the stay-length rule
+    if (rules.some((r) => /days, but the stay/.test(r.title) && f.lineItemIds.some((id) => r.lineItemIds.includes(id)) && /day|night/i.test(f.title))) return false;
+    if (!RULE_KINDS.has(f.kind)) return true;
+    return !rules.some(
+      (r) =>
+        r.kind === f.kind &&
+        (f.lineItemIds.length === 0
+          ? r.lineItemIds.length === 0
+          : f.lineItemIds.some((id) => r.lineItemIds.includes(id))),
+    );
+  });
 }
 
 /** Disputable total, never counting more than a line's amount across overlapping findings. */
@@ -346,7 +401,7 @@ export async function runAudit(input: AuditInput, emit: Emit): Promise<AuditResu
   const { findings: aiFindings, summary } = await step(emit, "audit", ["deep", "mid"], (t) =>
     audit(bill, rules, evidence, input.context, t),
   );
-  const findings = [...rules, ...aiFindings];
+  const findings = [...rules, ...dedupeAgainstRules(aiFindings, rules)];
   emit({ type: "findings", findings });
 
   const totalBilled = billTotal(bill);

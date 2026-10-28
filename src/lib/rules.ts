@@ -110,9 +110,69 @@ export function runRules(bill: ParsedBill): Finding[] {
     }
   }
 
+  // 6. Per-day charges billed for more days than the stay (discharge day is normally not billable)
+  const nights = stayNights(bill);
+  if (nights != null && nights > 0) {
+    for (const li of items) {
+      if (/room|bed|ward|nursing|icu|monitor|daily|per\s*day/i.test(li.description) && li.quantity > nights && li.quantity <= nights + 3) {
+        const unit = li.unitPrice ?? li.amount / li.quantity;
+        const extra = round(unit * (li.quantity - nights));
+        findings.push({
+          id: id(),
+          kind: "math_error",
+          title: `Billed for ${li.quantity} days, but the stay was ${nights} night${nights === 1 ? "" : "s"}`,
+          lineItemIds: [li.id],
+          explanation: `Admission ${bill.admissionDate} to discharge ${bill.dischargeDate} is ${nights} night(s), but "${li.description}" is charged for ${li.quantity} day(s). The discharge day is normally not billable.`,
+          estimatedOvercharge: extra,
+          confidence: "medium",
+          source: "rule",
+          citations: [],
+        });
+      }
+    }
+  }
+
+  // 7. Tax on healthcare services (exempt in most countries, e.g. GST-exempt in India)
+  if (bill.billType === "medical" && bill.statedTaxes && bill.statedTaxes > 0) {
+    // India: non-ICU rooms above ₹5,000/day legitimately attract 5% GST; everything else clinical is exempt.
+    const legit =
+      bill.currency === "INR"
+        ? round(
+            items
+              .filter((li) => /room|ward|bed/i.test(li.description) && !/icu/i.test(li.description))
+              .filter((li) => (li.unitPrice ?? li.amount / li.quantity) > 5000)
+              .reduce((s, li) => s + li.amount * 0.05, 0),
+          )
+        : 0;
+    const excess = round(bill.statedTaxes - legit);
+    if (excess > 0.5)
+    findings.push({
+      id: id(),
+      kind: "other",
+      title: `Tax charged on healthcare services`,
+      lineItemIds: [],
+      explanation:
+        bill.currency === "INR"
+          ? `The bill adds ₹${bill.statedTaxes.toFixed(2)} of GST. Healthcare services by a clinical establishment are GST-exempt in India; only a non-ICU room costing over ₹5,000/day attracts 5% GST${legit ? ` (≈ ₹${legit.toFixed(2)} here)` : ""}. The remaining ₹${excess.toFixed(2)} looks unjustified — ask exactly which items GST was applied to.`
+          : `The bill adds ${bill.statedTaxes.toFixed(2)} in tax. Medical services are generally tax-exempt — ask which items the tax was applied to and on what legal basis.`,
+      estimatedOvercharge: excess,
+      confidence: "medium",
+      source: "rule",
+      citations: [],
+    });
+  }
+
   return findings;
 }
 
+function stayNights(bill: ParsedBill): number | null {
+  if (!bill.admissionDate || !bill.dischargeDate) return null;
+  const a = Date.parse(bill.admissionDate);
+  const d = Date.parse(bill.dischargeDate);
+  if (isNaN(a) || isNaN(d) || d < a) return null;
+  return Math.round((d - a) / 86_400_000);
+}
+
 export function billTotal(bill: ParsedBill) {
-  return round(bill.lineItems.reduce((s, li) => s + li.amount, 0));
+  return round(bill.lineItems.reduce((s, li) => s + li.amount, 0) + (bill.statedTaxes ?? 0));
 }
