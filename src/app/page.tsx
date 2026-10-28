@@ -6,7 +6,8 @@ export default function Home() {
       <header className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <span className="grid h-9 w-9 place-items-center rounded-lg bg-emerald-600 text-lg font-bold text-white">Q</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-icon.png" alt="Quibillix logo" width={40} height={40} className="h-10 w-10" />
             <h1 className="text-2xl font-bold tracking-tight">Quibillix</h1>
             <span className="hidden text-sm text-slate-500 sm:inline">AI-Powered Bill Verification &amp; Dispute Agent</span>
           </div>

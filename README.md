@@ -1,5 +1,7 @@
 # Quibillix
 
+<p align="center"><img src="public/logo.png" alt="Quibillix — AI-Powered Bill Verification & Dispute Agent" width="320"></p>
+
 **AI-Powered Bill Verification & Dispute Agent.** *Every charge questioned. Every dispute supported.*
 
 *Quibillix* (quibble + bill + x) is an AI-powered bill verification and dispute agent.
