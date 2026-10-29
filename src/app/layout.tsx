@@ -1,44 +1,43 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
-import Fx from "@/components/fx/Fx";
+import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// One grotesk for the whole product (UI UX Pro Max fintech pairing); the mono is only for
+// IDs, billing codes and the printed bill itself.
+const plexSans = IBM_Plex_Sans({
+  variable: "--font-sans",
+  weight: ["400", "500", "600", "700"],
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-// Editorial serif used sparingly for display moments (hero, big numbers' captions).
-const display = Instrument_Serif({
-  variable: "--font-display",
-  weight: "400",
-  style: ["normal", "italic"],
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-mono", // taste-skill-ignore: IDs, codes and the printed bill only
+  weight: ["400", "500", "600"],
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "Quibillix — AI-Powered Bill Verification & Dispute Agent",
+  title: "Quibillix: bill verification and dispute agent",
   description:
     "Find overcharges in medical, hospital, telecom and utility bills and get a ready-to-send dispute letter. Powered by NVIDIA Nemotron on Nebius Token Factory.",
 };
 
-export const viewport: Viewport = { themeColor: "#080C18", colorScheme: "dark" };
+export const viewport: Viewport = { themeColor: "#E9ECE4", colorScheme: "light dark" };
+
+// Light is the default. If the user picked dark before, apply it before first paint so there's no flash.
+const THEME_BOOT = `try{if(localStorage.getItem("quibillix-theme")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${display.variable} h-full antialiased`}
+      suppressHydrationWarning
+      className={`${plexSans.variable} ${plexMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        <Fx />
-        {children}
-      </body>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
+      </head>
+      <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
 }

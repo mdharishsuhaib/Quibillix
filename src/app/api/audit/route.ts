@@ -1,7 +1,7 @@
 import { connection } from "next/server";
 import { runAudit, type AuditInput } from "@/lib/pipeline";
 import { hasModelProvider, providers } from "@/lib/llm";
-import { hasTavilyKey } from "@/lib/tavily";
+import { hasOllamaKey, tavilyKeys } from "@/lib/tavily";
 import type { StreamEvent } from "@/lib/types";
 
 export const maxDuration = 300;
@@ -22,7 +22,9 @@ export async function GET() {
   await connection(); // always evaluate at request time
   return Response.json({
     providers: providers().map((p) => ({ id: p.id, name: p.name, models: p.models })),
-    tavily: hasTavilyKey(),
+    tavily: tavilyKeys().length > 0,
+    tavilyKeys: tavilyKeys().length,
+    ollamaFallback: hasOllamaKey(),
   });
 }
 

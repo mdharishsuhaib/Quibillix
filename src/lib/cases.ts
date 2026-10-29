@@ -83,7 +83,7 @@ export function agentTrail(r: AuditResult): CaseEvent[] {
     { at: t, actor: "agent", action: "Read the bill", detail: `${r.bill.lineItems.length} line items · ${r.models.extract ?? ""}` },
     { at: t, actor: "agent", action: "Ran deterministic checks", detail: `${r.findings.filter((f) => f.source === "rule").length} issue(s)` },
   ];
-  if (r.models.research) steps.push({ at: t, actor: "agent", action: "Researched benchmarks & consumer law", detail: "Tavily" });
+  if (r.models.research) steps.push({ at: t, actor: "agent", action: "Researched benchmarks & consumer law", detail: r.models.research.replace(/ (web )?search/g, "") });
   steps.push({
     at: t,
     actor: "agent",

@@ -34,11 +34,12 @@ yarn-error.log*
 # ============================================================
 # SECRETS: never commit any of these
 # ============================================================
-# env files (API keys: NEBIUS_API_KEY, TAVILY_API_KEY, NVIDIA keys…)
+# env files (API keys: NEBIUS_API_KEY, TAVILY_API_KEY, TAVILY_API_KEY_2, NVIDIA_API_KEY, OLLAMA_API_KEY…)
 .env
 .env.*
 .env*.local
 *.env
+*.env.*
 !.env.example
 
 # keys, certificates & credentials
@@ -88,6 +89,10 @@ keys.json
 .config/nebius/
 .aws/
 .gcloud/
+.ollama/
+.azure/
+.docker/config.json
+.git-credentials
 
 # local editor / agent state
 .cursor/
@@ -102,3 +107,6 @@ keys.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Taste Skill inspector output
+/.taste-skill/

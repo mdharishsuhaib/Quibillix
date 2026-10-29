@@ -1,14 +1,13 @@
 "use client";
 
-import { useRef } from "react";
 import type { Certainty, Finding, ParsedBill } from "@/lib/types";
 import { money } from "./Results";
 
 const RANK: Record<Certainty, number> = { confirmed: 0, suspected: 1, needs_info: 2 };
 // Highlighter inks tuned for paper (not the dark UI).
 const INK: Record<Certainty, { mark: string; pin: string; text: string }> = {
-  confirmed: { mark: "rgba(255,113,141,0.38)", pin: "bg-coral text-ink", text: "text-[#b3123a]" },
-  suspected: { mark: "rgba(255,198,109,0.62)", pin: "bg-warn text-ink", text: "text-[#8a5300]" },
+  confirmed: { mark: "rgba(255,113,141,0.38)", pin: "bg-coral text-on-accent", text: "text-[#b3123a]" },
+  suspected: { mark: "rgba(255,198,109,0.62)", pin: "bg-warn text-on-accent", text: "text-[#8a5300]" },
   needs_info: { mark: "rgba(71,123,255,0.22)", pin: "bg-cobalt text-white", text: "text-[#2346b8]" },
 };
 
@@ -31,20 +30,7 @@ export default function Receipt({
   focusId: string | null;
   onFocus: (id: string | null) => void;
 }) {
-  const tilt = useRef<HTMLDivElement>(null);
-
-  const onMove = (e: React.PointerEvent) => {
-    const el = tilt.current;
-    if (!el || e.pointerType !== "mouse" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const r = el.getBoundingClientRect();
-    const x = (e.clientX - r.left) / r.width - 0.5;
-    const y = (e.clientY - r.top) / r.height - 0.5;
-    el.style.transform = `perspective(1400px) rotateX(${(-y * 4).toFixed(2)}deg) rotateY(${(x * 5).toFixed(2)}deg)`;
-  };
-  const onLeave = () => {
-    if (tilt.current) tilt.current.style.transform = "";
-    onFocus(null);
-  };
+  const onLeave = () => onFocus(null);
 
   // Which findings touch each line, and the worst certainty among them.
   const byLine = new Map<string, { idx: number; f: Finding }[]>();
@@ -56,12 +42,12 @@ export default function Receipt({
   const flagged = findings.reduce((s, f) => s + (f.certainty === "needs_info" ? 0 : f.estimatedOvercharge), 0);
 
   return (
-    <div className="relative" onPointerMove={onMove} onPointerLeave={onLeave}>
-      <div className="mb-2 flex items-center justify-between">
-        <span className="eyebrow">{bill ? "Live receipt · what Quibillix read" : image ? "Reading your image" : "Reading your bill"}</span>
-        {bill && <span className="font-mono text-[10px] text-mist/70">{bill.lineItems.length} lines</span>}
+    <div className="relative" onPointerLeave={onLeave}>
+      <div className="mb-3 flex items-baseline justify-between">
+        <h3 className="text-base font-semibold text-frost">{bill ? "Your bill, as Quibillix read it" : image ? "Reading your photo" : "Reading your bill"}</h3>
+        {bill && <span className="num text-sm text-mist">{bill.lineItems.length} lines</span>}
       </div>
-      <div ref={tilt} className="transition-transform duration-300 ease-[var(--ease-out)] [transform-style:preserve-3d]">
+      <div>
         <div className="paper torn-bottom relative overflow-hidden rounded-t-md">
           {scanning && <div className="scan-beam z-20" />}
 
@@ -71,14 +57,14 @@ export default function Receipt({
           )}
 
           {!bill && !image && (
-            <pre className="max-h-[560px] overflow-hidden whitespace-pre-wrap break-words px-4 py-5 font-mono text-[10.5px] leading-[17px] text-paper-ink/80">
+            <pre data-ui className="max-h-[560px] overflow-hidden whitespace-pre-wrap break-words px-4 py-5 font-mono text-[10.5px] leading-[17px] text-paper-ink/80">
               {raw.split("\n").slice(0, 46).join("\n")}
             </pre>
           )}
 
           {bill && (
-            <div className="px-4 pb-4 pt-5 font-mono text-[11px] leading-[17px]">
-              <div className="border-b border-dashed border-paper-ink/25 pb-3 text-center">
+            <div data-ui className="px-4 pb-4 pt-5 font-mono text-[11px] leading-[17px]"> {/* taste-skill-ignore: the printed bill is set like a till receipt */}
+              <div data-ui className="border-b border-dashed border-paper-ink/25 pb-3 text-center">
                 <p className="text-[12px] font-bold uppercase tracking-wide">{bill.provider || "Provider"}</p>
                 <p className="text-paper-ink/60">{[bill.location, bill.statementDate].filter(Boolean).join(" · ")}</p>
                 {bill.payer && <p className="text-paper-ink/60">Payer: {bill.payer}</p>}
@@ -102,7 +88,7 @@ export default function Receipt({
                           {hits.slice(0, 2).map((h) => (
                             <span
                               key={h.f.id}
-                              className={`grid h-[15px] w-[15px] place-items-center rounded-full text-[8.5px] font-bold shadow transition-transform ${INK[h.f.certainty].pin} ${isFocus ? "scale-125" : ""}`}
+                              className={`grid h-[15px] w-[15px] place-items-center rounded-full text-[8.5px] font-bold transition-transform ${INK[h.f.certainty].pin} ${isFocus ? "scale-125" : ""}`}
                             >
                               {h.idx + 1}
                             </span>
@@ -114,7 +100,7 @@ export default function Receipt({
                       <span className="min-w-0 flex-1">
                         <span
                           className={worst ? `marker box-decoration-clone px-0.5 ${isFocus ? "font-semibold" : ""}` : ""}
-                          style={worst ? { backgroundImage: `linear-gradient(${INK[worst].mark}, ${INK[worst].mark})`, ["--i" as string]: i } : undefined}
+                          style={worst ? { backgroundImage: `linear-gradient(${INK[worst].mark}, ${INK[worst].mark})`, ["--i" as string]: i } : undefined} // taste-skill-ignore: a flat one-colour highlighter swipe, animated by background-size
                         >
                           {li.code && <span className="text-paper-ink/50">{li.code} </span>}
                           {li.description}
@@ -126,16 +112,16 @@ export default function Receipt({
                   );
                 })}
               </ul>
-              <div className="space-y-0.5 border-t border-dashed border-paper-ink/25 pt-2">
+              <div data-ui className="space-y-0.5 border-t border-dashed border-paper-ink/25 pt-2">
                 <Row label="Sum of lines" value={money(sum, cur)} />
                 {bill.statedTotalDue != null && <Row label="Amount due (stated)" value={money(bill.statedTotalDue, cur)} bold />}
               </div>
 
               {audited && (
                 <div className="mt-5 flex justify-center pb-2">
-                  <div
-                    className={`stamp rounded-md border-2 px-3 py-1.5 text-center font-mono uppercase ${issues ? "border-[#7c3aed] text-[#7c3aed]" : "border-[#0f8a4c] text-[#0f8a4c]"}`}
-                    style={{ transform: "rotate(-8deg)" }}
+                  <div data-ui
+                    className={`stamp rounded-[3px] border-2 px-3 py-1.5 text-center font-mono uppercase ${issues ? "border-[#0b6f66] text-[#0b6f66]" : "border-[#1d6b45] text-[#1d6b45]"}`} // taste-skill-ignore: rubber stamp on the paper bill
+                    style={{ transform: "rotate(-6deg)" }}
                   >
                     <p className="text-[10px] font-bold tracking-[0.25em]">Audited · Quibillix</p>
                     <p className="text-[12px] font-bold">
@@ -148,7 +134,7 @@ export default function Receipt({
           )}
         </div>
       </div>
-      {bill && findings.length > 0 && <p className="mt-3 text-center text-[11px] text-mist/70">Hover a highlighted line to find its issue. Click to jump.</p>}
+      {bill && findings.length > 0 && <p className="mt-3 text-center text-sm text-mist">Point at a marked line to see its issue; click to jump to it.</p>}
     </div>
   );
 }

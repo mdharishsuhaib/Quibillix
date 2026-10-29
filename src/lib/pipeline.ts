@@ -1,5 +1,5 @@
 import { chat, chatJson, primaryModel, providers, traced, type ChatMessage, type Tier } from "./llm";
-import { hasTavilyKey, tavilySearch } from "./tavily";
+import { hasSearchKey, hasTavilyKey, webSearch } from "./tavily";
 import { billTotal, runRules } from "./rules";
 import type { AuditResult, Evidence, Finding, IssueKind, ParsedBill, StepId, StreamEvent } from "./types";
 
@@ -491,26 +491,35 @@ export async function runAudit(input: AuditInput, rawEmit: Emit): Promise<AuditR
   emit({ type: "step", step: "rules", status: "done", model: "deterministic checks", ms: Date.now() - t0, detail: `${rules.length} issue(s)` });
   emit({ type: "findings", findings: rules });
 
-  // 3 + 4. Triage with Super, then research with Tavily.
+  // 3 + 4. Triage with Super, then research the web: Tavily first, Ollama web search as fallback.
   let evidence: Evidence[] = [];
-  if (hasTavilyKey()) {
+  if (hasSearchKey()) {
     const plan = await step(emit, "triage", ["mid", "fast"], (t) => triage(bill, rules, input.context, t)).catch(() => ({ queries: [] }));
     if (plan.queries.length) {
       const t1 = Date.now();
-      emit({ type: "step", step: "research", status: "running", model: "Tavily search", detail: plan.queries.join(" · ") });
-      const settled = await Promise.allSettled(plan.queries.map(tavilySearch));
-      evidence = settled.flatMap((s) => (s.status === "fulfilled" ? [s.value] : []));
+      const label = hasTavilyKey() ? "Tavily search" : "Ollama web search";
+      emit({ type: "step", step: "research", status: "running", model: label, detail: plan.queries.join(" · ") });
+      const settled = await Promise.allSettled(plan.queries.map(webSearch));
+      const ok = settled.flatMap((s) => (s.status === "fulfilled" ? [s.value] : []));
+      evidence = ok.map(({ engine: _engine, backupKey: _backup, ...e }) => e); // eslint-disable-line @typescript-eslint/no-unused-vars
+      const engines = [...new Set(ok.map((e) => e.engine))];
       const failed = settled.filter((s) => s.status === "rejected").length;
       settled.forEach((s) => s.status === "rejected" && console.warn("[research]", s.reason));
       const nSources = evidence.reduce((s, e) => s + e.results.length, 0);
+      const usedBackupTavily = ok.some((e) => e.engine === "Tavily" && e.backupKey);
+      const note = engines.includes("Ollama") && hasTavilyKey()
+        ? " (Tavily unavailable, used Ollama)"
+        : usedBackupTavily
+          ? " (used backup Tavily key)"
+          : "";
       emit({
         type: "step",
         step: "research",
         status: evidence.length ? "done" : "error",
-        model: "Tavily search",
+        model: engines.length ? engines.map((e) => (e === "Tavily" ? "Tavily search" : "Ollama web search")).join(" + ") : label,
         ms: Date.now() - t1,
         detail: evidence.length
-          ? `${nSources} sources${failed ? ` (${failed} search${failed > 1 ? "es" : ""} failed)` : ""}`
+          ? `${nSources} sources${note}${failed ? ` (${failed} search${failed > 1 ? "es" : ""} failed)` : ""}`
           : "Web research unavailable, so price findings will be marked lower confidence",
       });
       emit({ type: "evidence", evidence });
@@ -518,8 +527,8 @@ export async function runAudit(input: AuditInput, rawEmit: Emit): Promise<AuditR
       emit({ type: "step", step: "research", status: "skipped", detail: "no queries planned" });
     }
   } else {
-    emit({ type: "step", step: "triage", status: "skipped", detail: "TAVILY_API_KEY not set" });
-    emit({ type: "step", step: "research", status: "skipped", detail: "TAVILY_API_KEY not set" });
+    emit({ type: "step", step: "triage", status: "skipped", detail: "No web search key set (TAVILY_API_KEY or OLLAMA_API_KEY)" });
+    emit({ type: "step", step: "research", status: "skipped", detail: "No web search key set (TAVILY_API_KEY or OLLAMA_API_KEY)" });
   }
 
   // 5. Deep audit with Ultra (falls back to Super if Ultra is unavailable).

@@ -10,6 +10,7 @@ import Cases, { manualMinutes } from "./Cases";
 import Receipt from "./Receipt";
 import Verdict from "./Verdict";
 import Icon, { type IconName } from "./fx/Icon";
+import ShortcutKeys from "./fx/ShortcutKeys";
 import { readPdf } from "@/lib/pdf";
 
 /** Client-side mirror of the server's per-line capped total, for approved subsets. */
@@ -85,6 +86,7 @@ export default function AuditApp() {
   const fileRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const runRef = useRef<() => void>(() => {});
+  const [nudge, setNudge] = useState(false); // shortcut pressed with nothing to check
 
   const cases = useSyncExternalStore(subscribeCases, loadCases, serverCases);
   const refreshCases = () => {}; // store notifies subscribers on save
@@ -297,17 +299,31 @@ export default function AuditApp() {
     [findings],
   );
   const canRun = !running && Boolean(text.trim() || image);
+  // Ctrl/Cmd + Enter: run the audit if a bill is loaded; otherwise take the user to the bill box.
   useEffect(() => {
-    runRef.current = () => canRun && run();
+    runRef.current = () => {
+      if (running) return;
+      if (result) return; // results on screen: never wipe them by accident
+      if (tab !== "audit") setTab("audit");
+      if (canRun) {
+        run();
+        return;
+      }
+      setNudge(true);
+      setTimeout(() => setNudge(false), 2400);
+      setTimeout(() => {
+        document.getElementById("workspace")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        document.getElementById("bill-text")?.focus({ preventScroll: true });
+      }, 30);
+    };
   });
 
-  // Ctrl/Cmd + Enter runs the audit from anywhere.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-        e.preventDefault();
-        runRef.current();
-      }
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.repeat || e.isComposing) return;
+      if (e.key !== "Enter" && e.code !== "Enter" && e.code !== "NumpadEnter") return;
+      e.preventDefault();
+      runRef.current();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -326,432 +342,400 @@ export default function AuditApp() {
   const SAMPLE_ICON: Record<string, IconName> = { "us-er": "pulse", "in-hospital": "hospital", telecom: "phone" };
 
   return (
-    <div className="space-y-10">
-      <nav id="workspace" className="no-print sticky top-3 z-40 flex flex-wrap items-center gap-3 rounded-2xl border border-steel/80 bg-carbon/80 p-1.5 backdrop-blur-xl">
-        <div className="relative flex rounded-xl bg-ink/60 p-1 text-sm" role="tablist">
-          <span
-            aria-hidden
-            className="absolute bottom-1 top-1 w-[calc(50%-4px)] rounded-lg bg-raised shadow-[inset_0_-2px_0_var(--glacier),0_6px_20px_-10px_var(--glacier)] transition-transform duration-500 ease-[var(--ease-out)]"
-            style={{ transform: tab === "audit" ? "translateX(0)" : "translateX(100%)" }}
-          />
+    <div className="space-y-12">
+      {/* A plain bar: two places to be, and where you are in the job. */}
+      <nav id="workspace" className="no-print sticky top-0 z-40 -mx-5 flex flex-wrap items-end gap-x-8 gap-y-2 bg-ink px-5 pt-3 sm:-mx-8 sm:px-8">
+        <div data-ui className="flex gap-7 border-b border-steel" role="tablist" aria-label="Workspace">
           {(
             [
-              ["audit", "Audit a bill", "search"],
-              ["cases", `My disputes${cases.length ? ` · ${cases.length}` : ""}`, "folder"],
+              ["audit", "Check a bill", "search"],
+              ["cases", `My disputes${cases.length ? ` (${cases.length})` : ""}`, "folder"],
             ] as const
           ).map(([id, label, icon]) => (
-            <button
-              key={id}
-              role="tab"
-              aria-selected={tab === id}
-              onClick={() => setTab(id)}
-              className={`relative z-10 inline-flex w-40 items-center justify-center gap-2 rounded-lg px-3 py-2 transition-colors ${tab === id ? "font-medium text-frost" : "text-mist hover:text-frost"}`}
-            >
-              <Icon name={icon} size={15} />
+            <button key={id} data-tab={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className="tab inline-flex items-center gap-2 pb-3 text-[15px] font-medium">
+              <Icon name={icon} size={16} />
               {label}
             </button>
           ))}
         </div>
-        <Journey
-          stage={tab === "cases" || caseId ? 4 : regenerating ? 3 : result ? 2 : running ? 1 : text.trim() || image ? 0 : 0}
-          running={running}
-        />
+        <Journey stage={tab === "cases" || caseId ? 4 : regenerating ? 3 : result ? 2 : running ? 1 : 0} running={running} />
       </nav>
+
       {tab === "cases" && (
-        <section className="reveal">
-          <p className="eyebrow mb-1">Resolve with oversight</p>
-          <h2 className="display mb-1 text-4xl text-frost">My disputes</h2>
-          <p className="mb-6 text-sm text-mist">Track each dispute from draft to resolution. Everything here is stored only in this browser.</p>
+        <section className="reveal" aria-labelledby="cases-title">
+          <h2 id="cases-title" className="text-2xl font-semibold text-frost">
+            My disputes
+          </h2>
+          <p className="mb-6 mt-1 text-[15px] text-mist">Each dispute from draft to resolution, with every agent and human step logged. Stored only in this browser.</p>
           <Cases cases={cases} onChange={refreshCases} onOpen={openCase} />
         </section>
       )}
 
-      {tab === "audit" && (
-        <>
-          {!started && (
-            <section className="no-print reveal">
-              <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-                <div>
-                  <p className="eyebrow mb-1">Step 1 · Check</p>
-                  <h2 className="display text-4xl text-frost">
-                    Hand over the bill. <em className="text-mist">We&apos;ll question it.</em>
-                  </h2>
+      {tab === "audit" && !started && (
+        <section className="no-print reveal" aria-labelledby="intake-title">
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+            <h2 id="intake-title" className="text-2xl font-semibold text-frost">
+              Add your bill
+            </h2>
+            <p className="inline-flex items-center gap-2 text-sm text-mist">
+              <Icon name="lock" size={14} className="text-mint" /> Read in memory, never stored. Names are removed before any web search.
+            </p>
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
+            <div
+              onDragEnter={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragOver={(e) => e.preventDefault()}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragging(false);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragging(false);
+                onFile(e.dataTransfer.files?.[0]);
+              }}
+              className={`panel relative flex flex-col overflow-hidden transition-colors duration-200 focus-within:!border-glacier ${dragging ? "!border-glacier" : ""}`}
+            >
+              {dragging && (
+                <div className="pointer-events-none absolute inset-0 z-20 grid place-items-center bg-ink/90">
+                  <div className="text-center">
+                    <Icon name="upload" size={28} className="mx-auto mb-3 text-glacier" />
+                    <p className="text-lg font-semibold text-frost">Drop the bill to read it</p>
+                    <p className="text-sm text-mist">PDF, photo or text file</p>
+                  </div>
                 </div>
-                <p className="inline-flex items-center gap-1.5 text-xs text-mist">
-                  <Icon name="lock" size={13} className="text-mint" /> Read in memory, never stored. Names are removed before any web search.
+              )}
+              <div className="flex items-center justify-between px-5 pt-4">
+                <label htmlFor="bill-text" className="text-sm font-medium text-frost">
+                  The bill
+                </label>
+                <span className="num text-sm text-mist">{image ? "Photo attached" : text ? `${text.split("\n").length} lines pasted` : "Paste, upload or drop"}</span>
+              </div>
+              {image ? (
+                <div className="flex flex-1 items-start gap-5 p-5">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={image.dataUrl} alt="Your bill" className="paper h-56 w-auto rounded-[3px] object-contain p-1" />
+                  <div className="text-[15px]">
+                    <p className="font-medium text-frost">{image.name}</p>
+                    <p className="mt-1 text-mist">
+                      Read by <span className="text-uv">Nemotron 3.5 Super VL</span>.
+                    </p>
+                    <button onClick={() => setImage(null)} className="mt-3 inline-flex items-center gap-1 text-sm text-coral hover:underline">
+                      <Icon name="x" size={13} /> Remove photo
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <textarea
+                  id="bill-text"
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder={"Paste the text of your bill or explanation of benefits here,\nor drop a PDF or photo anywhere on this panel."}
+                  aria-describedby="bill-formats"
+                  data-ui
+                  className="min-h-80 w-full flex-1 resize-y bg-transparent px-5 py-3 font-mono text-[13px] leading-relaxed text-frost outline-none placeholder:font-sans placeholder:text-[15px] placeholder:text-dim" /* taste-skill-ignore: pasted bill text keeps its column alignment */
+                />
+              )}
+              <div className="flex flex-wrap items-center gap-3 bg-raised px-5 py-3">
+                <button onClick={() => fileRef.current?.click()} className="btn-ghost inline-flex items-center gap-2 px-3 py-1.5 text-sm">
+                  <Icon name="upload" size={15} /> Upload a PDF or photo
+                </button>
+                <span id="bill-formats" className="text-sm text-mist">
+                  PDF, JPG, PNG, WebP or .txt
+                </span>
+                <input ref={fileRef} type="file" accept="application/pdf,.pdf,image/*,.txt,.csv,.md" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-5">
+              <div className="panel p-5">
+                <h3 className="mb-3 text-sm font-medium text-frost">No bill to hand? Try a real-looking one</h3>
+                <div className="grid gap-1">
+                  {SAMPLES.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => loadSample(s.id)}
+                      disabled={running}
+                      className="group flex items-center gap-3 rounded-[var(--r-control)] px-2 py-2 text-left transition-colors hover:bg-raised active:scale-[0.99] disabled:opacity-40"
+                    >
+                      <Icon name={SAMPLE_ICON[s.id] ?? "doc"} size={18} className="shrink-0 text-mist group-hover:text-glacier" />
+                      <span className="min-w-0">
+                        <span className="block text-[15px] text-frost">{s.label}</span>
+                        <span className="block truncate text-sm text-mist">{s.blurb}</span>
+                      </span>
+                    </button>
+                  ))}
+                  <button onClick={loadPhoto} disabled={running} className="group flex items-center gap-3 rounded-[var(--r-control)] px-2 py-2 text-left transition-colors hover:bg-raised disabled:opacity-40">
+                    <Icon name="camera" size={18} className="shrink-0 text-mist group-hover:text-glacier" />
+                    <span>
+                      <span className="block text-[15px] text-frost">Photo of a hospital bill</span>
+                      <span className="block text-sm text-mist">Tests the vision model</span>
+                    </span>
+                  </button>
+                  <button onClick={loadPdf} disabled={running} className="group flex items-center gap-3 rounded-[var(--r-control)] px-2 py-2 text-left transition-colors hover:bg-raised disabled:opacity-40">
+                    <Icon name="pdf" size={18} className="shrink-0 text-mist group-hover:text-glacier" />
+                    <span>
+                      <span className="block text-[15px] text-frost">PDF electricity bill</span>
+                      <span className="block text-sm text-mist">Read in your browser</span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="panel flex flex-1 flex-col p-5">
+                <label htmlFor="bill-context" className="mb-2 text-sm font-medium text-frost">
+                  What happened? <span className="font-normal text-mist">Optional, but it sharpens the audit</span>
+                </label>
+                <textarea
+                  id="bill-context"
+                  value={context}
+                  onChange={(e) => setContext(e.target.value)}
+                  placeholder="For example: I was in the ER for 2 hours with a sprained ankle. I have Aetna PPO and the hospital is in-network."
+                  className="field min-h-28 w-full flex-1 resize-y p-3 text-[15px]"
+                />
+              </div>
+
+              <div>
+                <button
+                  onClick={() => runRef.current()}
+                  disabled={running}
+                  aria-describedby="run-hint"
+                  className={`btn-primary group flex w-full items-center justify-center gap-2 px-4 py-3.5 text-base ${canRun ? "" : "opacity-60"}`}
+                >
+                  Check my bill
+                  <Icon name="arrow" size={17} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+                </button>
+                <p id="run-hint" aria-live="polite" className={`mt-2 text-center text-sm transition-colors duration-200 ${nudge ? "text-warn" : "text-mist"}`}>
+                  {canRun ? (
+                    <>
+                      Or press <ShortcutKeys /> to check it
+                    </>
+                  ) : nudge ? (
+                    "Paste a bill or pick a sample first, then press the shortcut again"
+                  ) : (
+                    <>
+                      Pick a sample, or press <ShortcutKeys /> to go to the bill box
+                    </>
+                  )}
                 </p>
               </div>
+            </div>
+          </div>
+        </section>
+      )}
 
-              <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
-                <div
-                  onDragEnter={(e) => {
-                    e.preventDefault();
-                    setDragging(true);
-                  }}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDragLeave={(e) => {
-                    if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragging(false);
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setDragging(false);
-                    onFile(e.dataTransfer.files?.[0]);
-                  }}
-                  className={`spot relative rounded-2xl p-[1px] transition-all duration-300 ${dragging ? "prism-ring scale-[1.01]" : "bg-steel"}`}
-                >
-                  <div className="relative overflow-hidden rounded-[15px] bg-carbon">
-                    {dragging && (
-                      <div className="pointer-events-none absolute inset-0 z-20 grid place-items-center bg-ink/80 backdrop-blur-sm">
-                        <div className="text-center">
-                          <div className="animate-float mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-glacier/15 text-glacier">
-                            <Icon name="upload" size={26} />
-                          </div>
-                          <p className="display text-2xl text-frost">Drop it into the prism</p>
-                          <p className="text-xs text-mist">PDF, photo or text</p>
-                        </div>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between border-b border-steel/80 px-4 py-2.5">
-                      <span className="eyebrow">Your bill</span>
-                      <span className="font-mono text-[10px] text-mist/60">{image ? "image" : text ? `${text.split("\n").length} lines` : "empty"}</span>
-                    </div>
-                    {image ? (
-                      <div className="flex items-start gap-4 p-4">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={image.dataUrl} alt="bill" className="paper h-52 w-auto rounded object-contain p-1" />
-                        <div className="text-sm">
-                          <p className="font-medium text-frost">{image.name}</p>
-                          <p className="mt-1 text-mist">
-                            Will be read by <span className="text-uv">Nemotron 3.5 Super VL</span>.
-                          </p>
-                          <button onClick={() => setImage(null)} className="mt-3 inline-flex items-center gap-1 text-coral hover:underline">
-                            <Icon name="x" size={13} /> Remove
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <textarea
-                        value={text}
-                        onChange={(e) => setText(e.target.value)}
-                        placeholder={"Paste the text of your bill or EOB here…\n\nor drop a PDF / photo anywhere on this card."}
-                        aria-label="Bill text"
-                        className="h-72 w-full resize-y bg-transparent p-4 font-mono text-xs leading-relaxed text-frost outline-none placeholder:text-[#6b7894]"
-                      />
-                    )}
-                    <div className="flex flex-wrap items-center gap-3 border-t border-steel/80 px-4 py-3 text-sm">
-                      <button onClick={() => fileRef.current?.click()} className="btn-ghost magnetic inline-flex items-center gap-2 px-3 py-1.5">
-                        <Icon name="upload" size={15} /> Upload PDF / photo
-                      </button>
-                      <span className="text-xs text-mist/70">PDF, JPG, PNG, WebP or .txt</span>
-                      <input ref={fileRef} type="file" accept="application/pdf,.pdf,image/*,.txt,.csv,.md" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
-                    </div>
-                  </div>
-                </div>
+      {tab === "audit" && started && (
+        <section ref={resultsRef} className="scroll-mt-20 space-y-6" aria-labelledby="results-title">
+          <div className="no-print flex flex-wrap items-center justify-between gap-3">
+            <h2 id="results-title" className="text-2xl font-semibold text-frost">
+              {result ? `${bill?.provider ?? "Your bill"}, checked` : error && !running ? "The check stopped" : <span className="caret">Checking every line</span>}
+            </h2>
+            <button
+              onClick={() => {
+                setBill(null);
+                setFindings([]);
+                setEvidence([]);
+                setResult(null);
+                setError(null);
+                setCaseId(null);
+                setSteps(initialSteps());
+                setTimeout(() => document.getElementById("workspace")?.scrollIntoView({ behavior: "smooth" }), 30);
+              }}
+              disabled={running}
+              className="btn-ghost inline-flex items-center gap-2 px-3 py-1.5 text-sm"
+            >
+              <Icon name="spark" size={14} /> Check another bill
+            </button>
+          </div>
 
-                <div className="flex flex-col gap-4">
-                  <div className="spot panel p-4">
-                    <p className="eyebrow mb-3">No bill handy? Try one</p>
-                    <div className="grid gap-2">
-                      {SAMPLES.map((s, i) => (
-                        <button
-                          key={s.id}
-                          onClick={() => loadSample(s.id)}
-                          disabled={running}
-                          className="reveal group flex items-center gap-3 rounded-xl border border-steel bg-ink/50 px-3 py-2.5 text-left transition hover:border-glacier/50 hover:bg-glacier/[0.06] disabled:opacity-40"
-                          style={{ ["--i" as string]: i + 2 }}
-                        >
-                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-glacier/10 text-glacier transition group-hover:scale-110">
-                            <Icon name={SAMPLE_ICON[s.id] ?? "doc"} size={16} />
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block text-sm font-medium text-frost">{s.label}</span>
-                            <span className="block truncate text-xs text-mist">{s.blurb}</span>
-                          </span>
-                        </button>
-                      ))}
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          onClick={loadPhoto}
-                          disabled={running}
-                          title="Tests the vision path (Nemotron 3.5 Super VL)"
-                          className="flex items-center gap-2 rounded-xl border border-dashed border-cobalt/50 px-3 py-2 text-xs text-cobalt transition hover:bg-cobalt/10 disabled:opacity-40"
-                        >
-                          <Icon name="camera" size={15} /> Bill photo
-                        </button>
-                        <button
-                          onClick={loadPdf}
-                          disabled={running}
-                          title="Tests PDF upload (text layer read in your browser)"
-                          className="flex items-center gap-2 rounded-xl border border-dashed border-cobalt/50 px-3 py-2 text-xs text-cobalt transition hover:bg-cobalt/10 disabled:opacity-40"
-                        >
-                          <Icon name="pdf" size={15} /> PDF utility bill
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+          <div className="no-print">
+            <Pipeline steps={steps} running={running} />
+          </div>
 
-                  <label className="spot panel flex flex-1 flex-col p-4">
-                    <span className="eyebrow mb-2">What happened? <span className="normal-case tracking-normal text-mist/60">(optional, it helps)</span></span>
-                    <textarea
-                      value={context}
-                      onChange={(e) => setContext(e.target.value)}
-                      placeholder="e.g. I was only in the ER for 2 hours for a sprained ankle. I have Aetna PPO; the hospital is in-network."
-                      className="field min-h-28 w-full flex-1 resize-y p-3 text-sm"
-                    />
-                  </label>
-
-                  <button onClick={run} disabled={!canRun} className="btn-primary magnetic group flex items-center justify-center gap-2 px-4 py-3.5 text-[15px]">
-                    Audit my bill
-                    <Icon name="arrow" size={17} className="transition-transform duration-300 group-hover:translate-x-1" />
-                  </button>
-                  <p className="-mt-2 text-center font-mono text-[10.5px] text-mist/60">
-                    <Icon name="keyboard" size={11} className="mr-1 inline" /> Ctrl / ⌘ + Enter
-                  </p>
-                </div>
-              </div>
-            </section>
-          )}
-          {started && (
-            <section ref={resultsRef} className="scroll-mt-24 space-y-6">
-              <div className="no-print flex flex-wrap items-end justify-between gap-3">
-                <div>
-                  <p className="eyebrow mb-1">{result ? "Step 3 · Review with oversight" : "Step 2 · Investigate"}</p>
-                  <h2 className="display text-4xl text-frost">
-                    {result ? (
-                      <>
-                        Here&apos;s what the prism <em className="prism-text">caught.</em>
-                      </>
-                    ) : error && !running ? (
-                      "The audit stopped."
-                    ) : (
-                      <>
-                        Questioning every line<span className="caret" />
-                      </>
-                    )}
-                  </h2>
-                </div>
-                <button
-                  onClick={() => {
-                    setBill(null);
-                    setFindings([]);
-                    setEvidence([]);
-                    setResult(null);
-                    setError(null);
-                    setCaseId(null);
-                    setSteps(initialSteps());
-                    setTimeout(() => document.getElementById("workspace")?.scrollIntoView({ behavior: "smooth" }), 30);
-                  }}
-                  disabled={running}
-                  className="btn-ghost inline-flex items-center gap-2 px-3 py-1.5 text-sm"
-                >
-                  <Icon name="spark" size={14} /> New audit
+          {error && (
+            <div role="alert" className="reveal panel flex items-start gap-3 p-4 text-[15px] text-frost">
+              <Icon name="x" size={16} className="mt-1 shrink-0 text-coral" />
+              <span>
+                {error}{" "}
+                <button onClick={run} disabled={!canRun} className="font-medium text-glacier underline underline-offset-2">
+                  Try again
                 </button>
-              </div>
+              </span>
+            </div>
+          )}
 
-              <div className="no-print">
-                <Pipeline steps={steps} running={running} />
-              </div>
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
+            <aside className="no-print lg:sticky lg:top-20 lg:h-fit">
+              <Receipt bill={bill} raw={text} image={image?.dataUrl ?? null} findings={sorted} scanning={scanning} audited={Boolean(result)} focusId={focusId} onFocus={setFocusId} />
+            </aside>
 
-              {error && (
-                <div role="alert" className="reveal flex items-start gap-3 rounded-xl border border-coral/40 bg-coral/10 p-4 text-sm text-coral">
-                  <Icon name="x" size={16} className="mt-0.5 shrink-0" />
-                  {error}
+            <div className="min-w-0 space-y-10">
+              {result && (
+                <Verdict
+                  result={result}
+                  findings={sorted}
+                  currency={currency}
+                  manualHours={Math.round((manualMinutes(result.bill.lineItems.length) / 60) * 10) / 10}
+                  focusId={focusId}
+                  onFocus={setFocusId}
+                />
+              )}
+
+              {/* Loading: the final layout, each value a flat bar at its real size. */}
+              {!result && !findings.length && running && (
+                <div className="space-y-3" aria-hidden>
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="panel p-5">
+                      <div className="bar-skeleton mb-3 h-4 w-1/2" />
+                      <div className="bar-skeleton mb-2 h-3 w-5/6" />
+                      <div className="bar-skeleton h-3 w-2/3" />
+                    </div>
+                  ))}
                 </div>
               )}
 
-              <div className="grid gap-8 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
-                <aside className="no-print lg:sticky lg:top-24 lg:h-fit">
-                  <Receipt
-                    bill={bill}
-                    raw={text}
-                    image={image?.dataUrl ?? null}
-                    findings={sorted}
-                    scanning={scanning}
-                    audited={Boolean(result)}
-                    focusId={focusId}
-                    onFocus={setFocusId}
-                  />
-                </aside>
+              {findings.length > 0 && (
+                <section aria-labelledby="findings-title">
+                  <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+                    <h3 id="findings-title" className="text-lg font-semibold text-frost">
+                      {result ? "Choose what goes in the dispute" : "Found so far"}
+                    </h3>
+                    {result ? (
+                      <p className="num text-[15px] text-mist">
+                        {approved.size} of {findings.length} in, worth <b className="font-semibold text-frost">{money(approvedTotal, currency)}</b>
+                      </p>
+                    ) : (
+                      <p className="caret text-sm text-mist">The deep audit is still running</p>
+                    )}
+                  </div>
+                  <div className="grid gap-3">
+                    {sorted.map((f, i) => (
+                      <FindingCard
+                        key={f.id}
+                        f={f}
+                        index={i}
+                        bill={bill ?? undefined}
+                        currency={currency}
+                        approved={result ? approved.has(f.id) : undefined}
+                        onToggle={result ? () => toggle(f.id) : undefined}
+                        focused={focusId === f.id}
+                        onFocus={setFocusId}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
 
-                <div className="min-w-0 space-y-8">
-                  {result && (
-                    <Verdict
-                      result={result}
-                      findings={sorted}
-                      currency={currency}
-                      manualHours={Math.round((manualMinutes(result.bill.lineItems.length) / 60) * 10) / 10}
-                      focusId={focusId}
-                      onFocus={setFocusId}
-                    />
-                  )}
-
-                  {!result && !findings.length && running && (
-                    <div className="space-y-3" aria-hidden>
-                      {[0, 1, 2].map((i) => (
-                        <div key={i} className="panel p-4">
-                          <div className="shimmer mb-3 h-3 w-1/3 rounded" />
-                          <div className="shimmer mb-2 h-3 w-5/6 rounded" />
-                          <div className="shimmer h-3 w-2/3 rounded" />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {findings.length > 0 && (
-                    <div>
-                      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-                        <h3 className="flex items-center gap-2 font-semibold text-frost">
-                          {result ? "Review findings" : "Issues found so far"}
-                          {!result && <span className="caret text-sm font-normal text-uv">deep audit in progress</span>}
-                        </h3>
-                        {result && (
-                          <p className="text-sm text-mist">
-                            <b className="text-glacier">{approved.size}</b> in dispute · <b className="text-glacier">{money(approvedTotal, currency)}</b>
-                          </p>
-                        )}
-                      </div>
-                      <div className="grid gap-3">
-                        {sorted.map((f, i) => (
-                          <FindingCard
-                            key={f.id}
-                            f={f}
-                            index={i}
-                            bill={bill ?? undefined}
-                            currency={currency}
-                            approved={result ? approved.has(f.id) : undefined}
-                            onToggle={result ? () => toggle(f.id) : undefined}
-                            focused={focusId === f.id}
-                            onFocus={setFocusId}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {result && !findings.length && (
-                    <div className="reveal panel flex items-center gap-4 p-5">
-                      <span className="grid h-10 w-10 place-items-center rounded-full bg-mint/15 text-mint">
-                        <Icon name="check" size={20} />
-                      </span>
-                      <div>
-                        <p className="font-medium text-frost">This bill came back clean.</p>
-                        <p className="text-sm text-mist">No math errors, duplicates or evidence-backed overcharges. Nothing to dispute.</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {result && (letter || needsLetter) && (
-                    <div className="reveal">
-                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <p className="eyebrow">Step 4 · Build the dispute</p>
-                          <h3 className="font-semibold text-frost">Dispute letter</h3>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {(letterStale || needsLetter) && (
-                            <button
-                              onClick={regenerate}
-                              disabled={regenerating || !approved.size}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-uv/50 bg-uv/10 px-3 py-1.5 text-sm text-uv transition hover:bg-uv/20 disabled:opacity-40"
-                            >
-                              <Icon name="spark" size={14} />
-                              {regenerating ? "Writing…" : needsLetter ? "Write letter for approved items" : "Rewrite for approved items"}
-                            </button>
-                          )}
-                          <button
-                            onClick={approveAndTrack}
-                            disabled={!approved.size || !letter || letterStale || regenerating}
-                            title={letterStale ? "Rewrite the letter first so it matches your approvals" : ""}
-                            className="btn-primary magnetic inline-flex items-center gap-1.5 px-3.5 py-1.5 text-sm"
-                          >
-                            <Icon name="shield" size={14} />
-                            {caseId ? "Update tracked case" : "Approve & track dispute"}
-                          </button>
-                        </div>
-                      </div>
-                      {letterStale && (
-                        <p className="mb-2 text-xs text-warn">You changed which findings are in the dispute. Rewrite the letter so it matches.</p>
-                      )}
-                      {caseId && (
-                        <p className="reveal mb-3 inline-flex items-center gap-2 rounded-lg border border-mint/40 bg-mint/10 px-3 py-1.5 text-sm text-mint">
-                          <Icon name="check" size={14} /> Tracking as case <b>{caseId}</b>
-                          <button className="underline" onClick={() => setTab("cases")}>
-                            Open My disputes
-                          </button>
-                        </p>
-                      )}
-                      {letter || regenerating ? (
-                        <LetterPanel result={result} letter={letter} setLetter={setLetter} phoneScript={phoneScript} regenerating={regenerating} revealKey={revealKey} />
-                      ) : (
-                        <p className="panel p-4 text-sm text-mist">
-                          The letter couldn&apos;t be drafted automatically because the model was busy. Your findings are safe, so click{" "}
-                          <span className="text-uv">Write letter for approved items</span> to try again.
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {evidence.length > 0 && (
-                    <details className="spot panel group p-4">
-                      <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium text-cobalt">
-                        <Icon name="search" size={15} />
-                        Research trail · {evidence.reduce((s, e) => s + e.results.length, 0)} sources via Tavily
-                        <Icon name="arrow" size={13} className="ml-auto rotate-90 transition-transform group-open:-rotate-90" />
-                      </summary>
-                      <div className="mt-4 space-y-4 border-l border-cobalt/30 pl-4">
-                        {evidence.map((e) => (
-                          <div key={e.query}>
-                            <p className="font-mono text-xs text-frost">“{e.query}”</p>
-                            {e.answer && <p className="mt-1 text-sm text-mist">{e.answer}</p>}
-                            <ul className="mt-1 space-y-0.5">
-                              {e.results.map((r) => (
-                                <li key={r.url} className="truncate text-xs">
-                                  <a href={r.url} target="_blank" rel="noreferrer" className="text-cobalt underline decoration-cobalt/40 hover:text-glacier">
-                                    {r.title}
-                                  </a>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ))}
-                      </div>
-                    </details>
-                  )}
+              {result && !findings.length && (
+                <div className="reveal panel flex items-center gap-4 p-5">
+                  <Icon name="check" size={22} className="shrink-0 text-mint" />
+                  <div>
+                    <p className="font-semibold text-frost">This bill came back clean</p>
+                    <p className="text-[15px] text-mist">No math errors, duplicates or evidence-backed overcharges, so there is nothing to dispute.</p>
+                  </div>
                 </div>
-              </div>
-            </section>
-          )}
-        </>
+              )}
+
+              {result && (letter || needsLetter) && (
+                <section className="reveal" aria-labelledby="letter-title">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <h3 id="letter-title" className="text-lg font-semibold text-frost">
+                      Your dispute letter
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {(letterStale || needsLetter) && (
+                        <button onClick={regenerate} disabled={regenerating || !approved.size} className="btn-ghost inline-flex items-center gap-1.5 px-3 py-2 text-sm">
+                          <Icon name="spark" size={14} className="text-uv" />
+                          {regenerating ? "Writing" : needsLetter ? "Write the letter" : "Rewrite to match"}
+                        </button>
+                      )}
+                      <button
+                        onClick={approveAndTrack}
+                        disabled={!approved.size || !letter || letterStale || regenerating}
+                        title={letterStale ? "Rewrite the letter first so it matches your choices" : ""}
+                        className="btn-primary inline-flex items-center gap-1.5 px-4 py-2 text-sm"
+                      >
+                        <Icon name="shield" size={15} />
+                        {caseId ? "Update the tracked case" : "Approve and track dispute"}
+                      </button>
+                    </div>
+                  </div>
+                  {letterStale && <p className="mb-3 text-[15px] text-warn">You changed what is in the dispute. Rewrite the letter so it matches before you approve it.</p>}
+                  {caseId && (
+                    <p className="reveal mb-3 flex flex-wrap items-center gap-2 text-[15px] text-frost">
+                      <Icon name="check" size={16} className="text-mint" /> Tracked as case <span data-ui className="font-mono text-sm">{caseId}</span>. {/* taste-skill-ignore: case ID */}
+                      <button className="font-medium text-glacier underline underline-offset-2" onClick={() => setTab("cases")}>
+                        Open My disputes
+                      </button>
+                    </p>
+                  )}
+                  {letter || regenerating ? (
+                    <LetterPanel result={result} letter={letter} setLetter={setLetter} phoneScript={phoneScript} regenerating={regenerating} revealKey={revealKey} />
+                  ) : (
+                    <p className="panel p-5 text-[15px] text-mist">
+                      The model was busy, so the letter wasn&apos;t drafted. Your findings are safe; press <span className="text-frost">Write the letter</span> to try again.
+                    </p>
+                  )}
+                </section>
+              )}
+
+              {evidence.length > 0 && (
+                <details className="panel group p-5">
+                  <summary className="flex cursor-pointer list-none items-center gap-2 text-[15px] font-medium text-frost">
+                    <Icon name="search" size={16} className="text-cobalt" />
+                    Research trail: {evidence.reduce((s, e) => s + e.results.length, 0)} sources found with{" "}
+                    {steps.research?.model?.replace(/ (web )?search/g, "") || "web search"}
+                    <Icon name="arrow" size={13} className="ml-auto rotate-90 text-mist transition-transform duration-200 group-open:-rotate-90" />
+                  </summary>
+                  <div className="mt-4 space-y-5">
+                    {evidence.map((e) => (
+                      <div key={e.query}>
+                        <p className="text-[15px] text-frost">“{e.query}”</p>
+                        {e.answer && <p className="mt-1 text-sm text-mist">{e.answer}</p>}
+                        <ul className="mt-1.5 space-y-1">
+                          {e.results.map((r) => (
+                            <li key={r.url} className="truncate text-sm">
+                              <a href={r.url} target="_blank" rel="noreferrer" className="text-cobalt underline decoration-cobalt/40 underline-offset-2 hover:text-frost">
+                                {r.title}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </div>
+          </div>
+        </section>
       )}
-      {/*__BODY__*/}
     </div>
   );
 }
 
-/** Where the user is in the job: Bill → Scan → Review → Dispute → Track. */
+/** Where the user is in the job. Order is carried by position and the words, not numbers. */
 function Journey({ stage, running }: { stage: number; running: boolean }) {
-  const stops = ["Add bill", "Scan", "Review", "Dispute", "Track"];
+  const stops = ["Add the bill", "Check", "Review", "Write", "Track"];
   return (
-    <ol className="ml-auto hidden items-center gap-1 pr-2 text-[11.5px] lg:flex" aria-label="Progress">
+    <ol className="ml-auto hidden items-center gap-4 pb-3 text-sm lg:flex" aria-label="Progress">
       {stops.map((s, i) => {
         const done = i < stage;
         const cur = i === stage;
         return (
-          <li key={s} className="flex items-center gap-1">
+          <li key={s} className={`flex items-center gap-2 ${cur ? "font-medium text-frost" : done ? "text-mist" : "text-dim"}`} aria-current={cur ? "step" : undefined}>
             <span
-              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-colors duration-500 ${
-                cur ? "bg-glacier/10 text-glacier ring-1 ring-glacier/40" : done ? "text-frost" : "text-mist/50"
-              }`}
-              aria-current={cur ? "step" : undefined}
+              className={`grid h-4 w-4 place-items-center rounded-full ${cur ? (running ? "bg-cobalt" : "bg-glacier") : done ? "bg-mint text-on-accent" : "border border-steel"}`}
             >
-              <span className={`h-1.5 w-1.5 rounded-full ${cur ? (running ? "bg-cobalt animate-pulse-ring" : "bg-glacier") : done ? "bg-mint" : "bg-steel"}`} />
-              {s}
+              {done && <Icon name="check" size={10} />}
             </span>
-            {i < stops.length - 1 && <span className={`h-px w-4 ${done ? "bg-mint/60" : "bg-steel"}`} />}
+            {s}
           </li>
         );
       })}
     </ol>
   );
 }
-

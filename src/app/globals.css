@@ -1,38 +1,106 @@
 @import "tailwindcss";
 
 /* ================================================================
-   Quibillix brand theme: "Obsidian Prism"  ·  design language: "Refraction"
-   A bill is white light. Quibillix is the prism that splits it into its
-   true spectrum: clean charges stay cool (glacier → cobalt → ultraviolet),
-   bad charges refract out warm (amber = suspected, coral = confirmed).
+   Quibillix design system: "Obsidian Prism" palette, "Refraction" idea.
+   The bill is white light; the audit splits it. Colour is reserved for
+   data (what a line *is*), never for chrome. See DESIGN.md.
+
+   Sources applied: Taste Skill app-screen rules (flat surfaces, colour on
+   data, no glow/glass/gradient text, figures <= 40px), UI UX Pro Max fintech
+   system (IBM Plex Sans, trust-first, avoid AI purple gradients), Emil
+   Kowalski motion rules (strong ease-out, :active scale .97, never enter from zero scale).
+   The brand palette is pinned by the client and kept as given.
    ================================================================ */
+/* ---------- LIGHT (default): "Payne's Grey on Vellum" ----------
+   A drafting table: cool grey-green vellum, near-white tracing paper, graphite-green text. The
+   action colour is Payne's Grey, the blue-slate watercolour pigment mixed by William Payne (c.1780).
+   Evidence is Prussian blue, the agent is jade, money is ledger green, suspicion is ochre, errors
+   are crimson pencil. No cream, no orange, no violet. Same token jobs as dark; every text hue >= 4.8:1. */
 :root {
-  --ink: #080c18;      /* Obsidian Ink: main background   */
-  --carbon: #111a2b;   /* Carbon Slate: surfaces          */
-  --raised: #16223a;   /* surface hover / inset           */
-  --frost: #f4f7ff;    /* Paper Frost: primary text       */
-  --mist: #a4b0c7;     /* Silver Mist: secondary text     */
-  --steel: #26334a;    /* Night Steel: borders, dividers  */
-  --glacier: #20e3ce;  /* Glacier Turquoise: primary      */
-  --cobalt: #477bff;   /* Evidence Cobalt: secondary      */
-  --uv: #b66cff;       /* Dispute Ultraviolet: accent     */
-  --mint: #85f2ae;     /* confirmed success               */
-  --warn: #ffc66d;     /* potential discrepancy           */
-  --coral: #ff718d;    /* disputed / failed               */
-  --prism: linear-gradient(90deg, #20e3ce 0%, #477bff 50%, #b66cff 100%);
-  --paper: #e9eef8;    /* the physical bill               */
+  --ink: #e9ece4;      /* vellum ground                        */
+  --carbon: #fbfcf8;   /* tracing-paper surface                */
+  --raised: #eef1ea;   /* nested / hover: a sheet underneath   */
+  --steel: #d8ddd3;    /* ruled lines                          */
+  --edge: #bcc3b8;     /* interactive outline                  */
+
+  --frost: #1f2421;    /* graphite-green ink: primary text      */
+  --mist: #4b524c;     /* secondary                             */
+  --dim: #5f6760;      /* meta, placeholders                    */
+
+  --glacier: #3b4d5e;  /* Payne's Grey: the action + selection  */
+  --glacier-hover: #2c3b49;
+  --on-accent: #fbfcf8; /* text sitting on a hue fill */
+  --cobalt: #1f4f8f;   /* Prussian blue: evidence, sources      */
+  --cobalt-soft: #1f4f8f;
+  --uv: #2f6b57;       /* jade: the AI agent                    */
+  --mint: #1b6a3b;     /* ledger green: recovered money         */
+  --warn: #856000;     /* ochre: suspected                      */
+  --coral: #a8123e;    /* crimson pencil: confirmed error       */
+  --neutral-slice: #cdd3c8;
+  --knob: #fbfcf8;      /* switch thumb */
+  --paper-edge: #cfd6cb; /* the bill sheet's edge */
+  --floor-shadow: rgb(30 40 35 / 0.16);
+  --prism: linear-gradient(90deg, #3b4d5e 0%, #1f4f8f 50%, #2f6b57 100%); /* taste-skill-ignore: brand spectrum, progress rail and logo only */
+
+  --paper: #f1f5ee;    /* the bill: cool tracing paper */
+  --paper-ink: #1f2421;
+
+  color-scheme: light;
+}
+:root:not([data-theme="dark"]) ::selection { background: rgb(59 77 94 / 0.2); }
+
+/* ---------- DARK (opt-in via the header toggle) ---------- */
+:root[data-theme="dark"] {
+  /* ground & surfaces: one tone step each, no borders needed between them */
+  --ink: #080c18;      /* Obsidian Ink: ground                 */
+  --carbon: #111a2b;   /* Carbon Slate: surface                */
+  --raised: #182338;   /* nested / hover surface               */
+  --steel: #26334a;    /* Night Steel: rules and control edges */
+  --edge: #34445f;     /* interactive outline, one step up     */
+
+  /* text: two greys that read apart, both >= 4.5:1 on --carbon */
+  --frost: #f4f7ff;    /* primary ink   */
+  --mist: #a4b0c7;     /* secondary     */
+  --dim: #8794ad;      /* meta, placeholders (4.6:1 on carbon) */
+
+  /* brand hues, each with ONE job */
+  --glacier: #20e3ce;  /* the action + selection line            */
+  --glacier-hover: #4eeadb;
+  --on-accent: #080c18;
+  --cobalt: #477bff;   /* evidence: links, sources, research     */
+  --cobalt-soft: #8fb0ff;
+  --uv: #b66cff;       /* the agent: model names, AI provenance  */
+  --mint: #85f2ae;     /* resolved / recovered money             */
+  --warn: #ffc66d;     /* suspected overcharge                   */
+  --coral: #ff718d;    /* confirmed error                        */
+  --neutral-slice: #3a4a66;
+  --knob: #f4f7ff;
+  --paper-edge: transparent;
+  --floor-shadow: rgb(0 0 0 / 0.7);
+  --prism: linear-gradient(90deg, #20e3ce 0%, #477bff 50%, #b66cff 100%); /* taste-skill-ignore: brand spectrum, used only on the progress rail (light has passed through) and in the logo */
+
+  /* the physical bill */
+  --paper: #e9eef8;
   --paper-ink: #1a2235;
 
-  /* Motion tokens: one easing family across the product. */
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --dur-1: 160ms;
-  --dur-2: 320ms;
-  --dur-3: 640ms;
+  color-scheme: dark;
+}
+
+:root {
+  /* motion (Emil Kowalski): strong ease-out for UI, ease-in-out for on-screen moves */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --dur-press: 160ms;
+  --dur-ui: 240ms;
+  --dur-enter: 420ms;
+
+  /* shape: one tight radius family, nested radii step down */
+  --r-card: 12px;
+  --r-control: 8px;
+  --r-chip: 4px;
 
   --background: var(--ink);
   --foreground: var(--frost);
-  color-scheme: dark;
 }
 
 @theme inline {
@@ -43,260 +111,290 @@
   --color-raised: var(--raised);
   --color-frost: var(--frost);
   --color-mist: var(--mist);
+  --color-dim: var(--dim);
   --color-steel: var(--steel);
+  --color-edge: var(--edge);
   --color-glacier: var(--glacier);
   --color-cobalt: var(--cobalt);
   --color-uv: var(--uv);
   --color-mint: var(--mint);
   --color-warn: var(--warn);
   --color-coral: var(--coral);
+  --color-on-accent: var(--on-accent);
+  --color-cobalt-soft: var(--cobalt-soft);
+  --color-knob: var(--knob);
   --color-paper: var(--paper);
   --color-paper-ink: var(--paper-ink);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-display: var(--font-display);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono); /* taste-skill-ignore: mono is for IDs, billing codes and the printed bill only */
 }
 
 html { scroll-behavior: smooth; }
 
 body {
-  background:
-    radial-gradient(1200px 600px at 10% -10%, rgb(32 227 206 / 0.07), transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, rgb(182 108 255 / 0.07), transparent 60%),
-    var(--ink);
-  background-attachment: fixed;
+  background: var(--ink);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
-}
-
-/* Film grain: kills the flat "AI gradient" look. */
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 60;
-  opacity: 0.045;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
 }
 
 ::selection { background: rgb(32 227 206 / 0.3); }
 
+/* Keyboard focus ring for controls. Text fields show focus with their own border instead,
+   since a ring around a textarea overlaps the label above it. */
 :focus-visible {
   outline: 2px solid var(--glacier);
   outline-offset: 2px;
-  border-radius: 6px;
+}
+textarea:focus-visible,
+input:focus-visible,
+select:focus-visible { outline: none; }
+
+/* Anything clickable gets the hand cursor (Tailwind v4 resets buttons to the default arrow). */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"],
+  a[href],
+  summary,
+  label[for],
+  select,
+  input[type="file"],
+  input[type="checkbox"],
+  input[type="radio"] { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
 }
 
-@property --angle {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
-}
+.num { font-variant-numeric: tabular-nums; }
 
 @layer components {
+  /* Surfaces separate by one tone step. The 1px line is the app-screen allowance. */
   .panel {
     background: var(--carbon);
     border: 1px solid var(--steel);
-    border-radius: 1rem;
+    border-radius: var(--r-card);
   }
+  .well { background: var(--raised); border-radius: var(--r-control); }
 
-  /* Pointer spotlight (positions set by <Fx />): a light that follows the cursor
-     across the surface and lights the hairline border near it. */
-  .spot { position: relative; isolation: isolate; }
-  .spot::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    z-index: -1;
-    background: radial-gradient(420px circle at var(--mx, -999px) var(--my, -999px), rgb(32 227 206 / 0.07), transparent 45%);
-  }
-  .spot::after {
-    content: "";
-    position: absolute;
-    inset: -1px;
-    border-radius: inherit;
-    padding: 1px;
-    pointer-events: none;
-    background: radial-gradient(260px circle at var(--mx, -999px) var(--my, -999px), rgb(32 227 206 / 0.55), rgb(71 123 255 / 0.25) 40%, transparent 70%);
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
-  }
-
-  .prism-text {
-    background: var(--prism);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-  .prism-bar { background: var(--prism); }
-  /* Gradient hairline border, reserved for the single headline result. */
-  .prism-border {
-    border: 1px solid transparent;
-    background:
-      linear-gradient(var(--carbon), var(--carbon)) padding-box,
-      var(--prism) border-box;
-  }
-  .display { font-family: var(--font-display), Georgia, serif; font-weight: 400; letter-spacing: -0.01em; }
-
+  /* Flat primary: one fill, named for its action, presses in. */
   .btn-primary {
-    position: relative;
-    overflow: hidden;
     background: var(--glacier);
-    color: var(--ink);
+    color: var(--on-accent);
     font-weight: 600;
-    border-radius: 0.625rem;
-    box-shadow: 0 0 0 1px rgb(32 227 206 / 0.4), 0 8px 24px -8px rgb(32 227 206 / 0.55);
-    transition: filter var(--dur-1), box-shadow var(--dur-2), transform var(--dur-2) var(--ease-out);
+    border-radius: var(--r-control);
+    transition: background-color var(--dur-ui) ease, transform var(--dur-press) var(--ease-out);
   }
-  /* Light sweep across the primary action. */
-  .btn-primary::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.45) 50%, transparent 65%);
-    transform: translateX(-120%);
-    transition: transform 0.9s var(--ease-out);
-  }
-  .btn-primary:hover:not(:disabled)::after { transform: translateX(120%); }
-  .btn-primary:hover:not(:disabled) { filter: brightness(1.06); box-shadow: 0 0 0 1px rgb(32 227 206 / 0.6), 0 14px 36px -10px rgb(32 227 206 / 0.75); }
-  .btn-primary:active:not(:disabled) { transform: scale(0.98); }
-  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+  .btn-primary:hover:not(:disabled) { background: var(--glacier-hover); }
+  .btn-primary:active:not(:disabled) { transform: scale(0.97); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
 
   .btn-ghost {
-    border: 1px solid var(--steel);
+    border: 1px solid var(--edge);
     color: var(--frost);
-    border-radius: 0.5rem;
-    transition: background var(--dur-1), border-color var(--dur-1), transform var(--dur-2) var(--ease-out);
+    border-radius: var(--r-control);
+    transition: background-color var(--dur-ui) ease, transform var(--dur-press) var(--ease-out);
   }
-  .btn-ghost:hover:not(:disabled) { background: var(--raised); border-color: #33445f; }
+  .btn-ghost:hover:not(:disabled) { background: var(--raised); }
   .btn-ghost:active:not(:disabled) { transform: scale(0.97); }
+  .btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 
   .field {
     background: var(--ink);
-    border: 1px solid var(--steel);
+    border: 1px solid var(--edge);
     color: var(--frost);
-    border-radius: 0.625rem;
+    border-radius: var(--r-control);
     outline: none;
-    transition: border-color var(--dur-1), box-shadow var(--dur-2);
+    transition: border-color var(--dur-ui) ease;
   }
-  .field::placeholder { color: #6b7894; }
-  .field:focus { border-color: var(--glacier); box-shadow: 0 0 0 3px rgb(32 227 206 / 0.15); }
+  .field::placeholder { color: var(--dim); }
+  .field:focus { border-color: var(--glacier); }
 
-  .eyebrow {
-    font-family: var(--font-geist-mono), monospace;
-    font-size: 10.5px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
+  /* The one selection language: a 2px accent line exactly as wide as the label. */
+  .tab {
+    position: relative;
     color: var(--mist);
+    transition: color var(--dur-ui) ease;
   }
-
-  /* Rotating prism border for the active drop zone. */
-  .prism-ring {
-    border: 1px solid transparent;
-    background:
-      linear-gradient(var(--ink), var(--ink)) padding-box,
-      conic-gradient(from var(--angle), #20e3ce, #477bff, #b66cff, #20e3ce) border-box;
-    animation: spin-angle 3s linear infinite;
+  .tab:hover { color: var(--frost); }
+  .tab[aria-selected="true"] { color: var(--frost); }
+  .tab::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    background: var(--glacier);
+    transform: scaleX(0.6);
+    opacity: 0;
+    transition: transform var(--dur-ui) var(--ease-out), opacity var(--dur-ui) ease;
   }
+  .tab[aria-selected="true"]::after { transform: scaleX(1); opacity: 1; }
 
-  /* The physical bill. */
+  /* Pale tint + same-hue ink: status pills inside rows only. */
+  .pill { display: inline-flex; align-items: center; gap: 6px; border-radius: var(--r-chip); padding: 1px 8px; font-size: 12px; font-weight: 500; }
+
+  /* ---------- the bill as an object ---------- */
   .paper {
-    background:
-      repeating-linear-gradient(0deg, transparent 0 23px, rgb(26 34 53 / 0.035) 23px 24px),
-      linear-gradient(180deg, #f1f4fb, var(--paper));
+    background: var(--paper);
     color: var(--paper-ink);
-    box-shadow: 0 40px 80px -40px rgb(0 0 0 / 0.8), 0 0 0 1px rgb(255 255 255 / 0.06), 0 0 60px -20px rgb(71 123 255 / 0.35);
+    outline: 1px solid var(--paper-edge);
+    outline-offset: -1px;
   }
   .torn-bottom {
-    -webkit-mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 14px 100%;
-    mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 14px 100%;
+    -webkit-mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 14px 100%; /* taste-skill-ignore: a mask that tears the paper edge, not a fill */
+    mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 14px 100%; /* taste-skill-ignore: same mask */
     padding-bottom: 14px;
   }
-
-  /* Highlighter swipe used on flagged receipt lines. */
+  /* Highlighter swipe on flagged lines: the audit marking up the paper. */
   .marker {
     background-repeat: no-repeat;
     background-size: 0% 100%;
-    animation: marker 0.7s var(--ease-out) forwards;
-    animation-delay: calc(var(--i, 0) * 90ms + 150ms);
+    animation: marker 0.6s var(--ease-out) forwards;
+    animation-delay: calc(var(--i, 0) * 70ms + 120ms);
   }
-
-  .reveal {
-    opacity: 0;
-    animation: rise var(--dur-3) var(--ease-out) forwards;
-    animation-delay: calc(var(--i, 0) * 70ms);
-  }
-
+  /* The scanner: one glacier line travelling down the bill while it is read, a flat tint behind it. */
   .scan-beam {
     position: absolute;
-    left: -4%;
-    right: -4%;
-    height: 72px;
+    left: 0;
+    right: 0;
+    height: 40px;
     pointer-events: none;
-    background: linear-gradient(180deg, transparent, rgb(32 227 206 / 0.16) 70%, rgb(32 227 206 / 0.9) 98%, transparent);
-    filter: drop-shadow(0 0 10px rgb(32 227 206 / 0.8));
-    animation: scan 2.4s var(--ease-out) infinite;
+    background: color-mix(in srgb, var(--glacier) 10%, transparent);
+    border-bottom: 2px solid var(--glacier);
+    animation: scan 2.2s var(--ease-in-out) infinite;
   }
 
-  .stamp {
-    animation: stamp 0.55s var(--ease-spring) both;
+  /* Entrances: rise 16px with opacity, staggered by --i, once. */
+  .reveal {
+    animation: rise var(--dur-enter) var(--ease-out) both;
+    animation-delay: calc(var(--i, 0) * 60ms);
   }
+  .stamp { animation: stamp 0.42s var(--ease-out) both; }
 
   .caret::after {
     content: "";
     display: inline-block;
-    width: 7px;
-    height: 1.05em;
-    margin-left: 1px;
-    vertical-align: -0.15em;
-    background: var(--uv);
+    width: 2px;
+    height: 1em;
+    margin-left: 3px;
+    vertical-align: -0.12em;
+    background: var(--glacier);
     animation: blink 1s steps(1) infinite;
   }
 
-  .shimmer {
-    background: linear-gradient(90deg, rgb(255 255 255 / 0.03), rgb(255 255 255 / 0.09), rgb(255 255 255 / 0.03));
-    background-size: 200% 100%;
-    animation: shimmer 1.6s linear infinite;
+  /* Loading: a flat bar at the real size of what will land there. */
+  .bar-skeleton { background: var(--raised); border-radius: var(--r-chip); }
+
+  /* ---------- hero: the bill's journey in 3D (BillJourney3D) ---------- */
+  .bj-view { perspective: 1300px; perspective-origin: 50% 42%; touch-action: pan-y; }
+  .bj-stage {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 560px;
+    height: 400px;
+    margin: -200px 0 0 -280px;
+    transform-style: preserve-3d;
+    will-change: transform;
   }
+  .bj-obj {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform-style: preserve-3d;
+    transition: transform 1000ms var(--ease-in-out), opacity 700ms var(--ease-out);
+    will-change: transform, opacity;
+  }
+  .bj-obj > * { transform-style: preserve-3d; }
+  .bj-badge { transition: transform 360ms var(--ease-out), opacity 240ms ease; }
+  .bj-floor {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 1100px;
+    height: 760px;
+    margin: -380px 0 0 -550px;
+    transform: translateY(200px) rotateX(90deg);
+    background-image: linear-gradient(var(--steel) 1px, transparent 1px), linear-gradient(90deg, var(--steel) 1px, transparent 1px);
+    background-size: 44px 44px;
+    -webkit-mask-image: radial-gradient(closest-side, #000 15%, transparent 100%); /* taste-skill-ignore: fades the floor grid into the surface */
+    mask-image: radial-gradient(closest-side, #000 15%, transparent 100%); /* taste-skill-ignore: same mask */
+    opacity: 0.8;
+  }
+  .bj-shadow {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 240px;
+    height: 120px;
+    margin: -60px 0 0 -120px;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, var(--floor-shadow), transparent); /* taste-skill-ignore: contact shadow on the floor, not a glow */
+    transition: transform 1000ms var(--ease-in-out), opacity 700ms ease;
+  }
+  .bj-row { animation: bj-row 420ms var(--ease-out) both; }
+  .bj-scan {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 30px;
+    background: color-mix(in srgb, var(--glacier) 14%, transparent);
+    border-bottom: 2px solid var(--glacier);
+    animation: bj-scan 2.2s var(--ease-in-out) 250ms both;
+  }
+  .bj-cursor {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    animation: bj-cursor 2.6s var(--ease-in-out) 200ms both;
+  }
+  .bj-fill { animation-name: bj-fill; animation-timing-function: linear; animation-fill-mode: both; }
 }
 
-@keyframes spin-angle { to { --angle: 360deg; } }
-@keyframes rise { from { opacity: 0; transform: translateY(14px) scale(0.985); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes bj-row { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+@keyframes bj-scan { 0% { transform: translateY(0); opacity: 0; } 8%, 88% { opacity: 1; } 100% { transform: translateY(196px); opacity: 0; } }
+@keyframes bj-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes bj-cursor {
+  0% { transform: translate3d(250px, 190px, 150px); opacity: 0; }
+  12% { opacity: 1; }
+  28%, 40% { transform: translate3d(48px, -146px, 140px); }
+  34% { transform: translate3d(48px, -146px, 140px) scale(0.82); }
+  62%, 100% { transform: translate3d(46px, -64px, 130px); opacity: 1; }
+  68% { transform: translate3d(46px, -64px, 130px) scale(0.82); }
+}
+
+@keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
 @keyframes marker { to { background-size: 100% 100%; } }
-@keyframes scan { 0% { top: -72px; opacity: 0; } 12% { opacity: 1; } 88% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
-@keyframes stamp { 0% { opacity: 0; transform: scale(1.8) rotate(-18deg); } 100% { opacity: 1; transform: scale(1) rotate(-8deg); } }
+@keyframes scan { 0% { top: -40px; opacity: 0; } 10%, 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+@keyframes stamp { 0% { opacity: 0; transform: scale(1.25) rotate(-12deg); } 100% { opacity: 1; transform: scale(1) rotate(-6deg); } }
 @keyframes blink { 50% { opacity: 0; } }
-@keyframes shimmer { to { background-position: -200% 0; } }
-@keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgb(71 123 255 / 0.55); } 100% { box-shadow: 0 0 0 12px rgb(71 123 255 / 0); } }
-@keyframes comet { 0% { left: 0%; opacity: 0; } 15% { opacity: 1; } 100% { left: 100%; opacity: 0; } }
-@keyframes float-y { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes comet { 0% { transform: translateX(-100%); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateX(400%); opacity: 0; } }
+@keyframes breathe { 50% { opacity: 0.45; } }
 @keyframes grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes draw { to { stroke-dashoffset: 0; } }
 
-.animate-pulse-ring { animation: pulse-ring 1.4s var(--ease-out) infinite; }
-.animate-comet { animation: comet 1.6s var(--ease-out) infinite; }
-.animate-float { animation: float-y 5s ease-in-out infinite; }
-.animate-grow-x { transform-origin: left; animation: grow-x 0.9s var(--ease-out) both; }
+.animate-comet { animation: comet 1.4s var(--ease-in-out) infinite; }
+.animate-breathe { animation: breathe 1.6s ease-in-out infinite; }
+.animate-grow-x { transform-origin: left; animation: grow-x 0.7s var(--ease-out) both; }
 
-/* Respect users who turn motion off: everything still works, just still. */
+/* Reduced motion = fewer and gentler, not zero: keep fades, drop travel. */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  *, *::before, *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
-  }
-  .scan-beam { display: none; }
+  .reveal { animation-name: fade; }
+  .scan-beam, .animate-comet, .bj-scan, .bj-cursor { display: none; }
+  .bj-row { animation: none; }
+  .marker { animation-duration: 0.001ms; animation-delay: 0ms; }
+  .stamp, .animate-grow-x { animation-name: fade; }
+  .animate-breathe, .caret::after { animation: none; }
+  *, *::before, *::after { transition-duration: 0.001ms !important; }
 }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 
 /* Letters get printed: switch back to paper. */
 @media print {
   .no-print { display: none !important; }
   body { background: #fff !important; color: #000 !important; }
-  body::after { display: none; }
   .panel, .field { background: #fff !important; color: #000 !important; border-color: #ccc !important; }
 }

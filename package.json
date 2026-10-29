@@ -9,6 +9,7 @@
     "lint": "eslint",
     "check-models": "node scripts/check-models.mjs",
     "check-secrets": "node scripts/check-secrets.mjs",
+    "prepare": "node -e \"try{require('child_process').execSync('git config core.hooksPath .githooks',{stdio:'ignore'})}catch(e){}\"",
     "smoke": "node scripts/smoke.mjs",
     "test": "tsx scripts/unit.ts && tsx scripts/test-redact.ts",
     "failover-test": "tsx scripts/failover-test.ts",
