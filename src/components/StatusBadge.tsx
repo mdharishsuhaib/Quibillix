@@ -39,13 +39,16 @@ export default function StatusBadge() {
   const t = TONE[h.status];
   return (
     <div className="relative text-xs">
-      <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-2 rounded-full border border-steel bg-carbon px-3 py-1.5 hover:border-[#33445f]">
-        <span className={`h-2 w-2 rounded-full ${t.dot}`} />
+      <button onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex items-center gap-2 rounded-full border border-steel bg-carbon/80 px-3 py-1.5 backdrop-blur transition hover:border-[#33445f]">
+        <span className="relative flex h-2 w-2">
+          {h.status === "ok" && <span className="absolute inset-0 animate-ping rounded-full bg-mint/60" />}
+          <span className={`relative h-2 w-2 rounded-full ${t.dot}`} />
+        </span>
         <span className={t.text}>{t.label}</span>
-        <span className="text-mist">· Nemotron via {h.primary ?? "n/a"} + Tavily</span>
+        <span className="hidden text-mist sm:inline">· Nemotron via {h.primary ?? "n/a"} + Tavily</span>
       </button>
       {open && (
-        <div className="panel absolute right-0 z-10 mt-2 w-80 p-3 shadow-xl">
+        <div className="panel reveal absolute right-0 z-50 mt-2 w-80 p-3 shadow-2xl">
           <ul className="space-y-1.5">
             {h.checks.map((c) => (
               <li key={c.name} className="flex items-start gap-2">
