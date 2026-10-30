@@ -80,8 +80,8 @@ keys.json
 /.keys/
 /credentials/
 
-# deployment / CLI state that can contain tokens
-.vercel
+# deployment / CLI state that can contain tokens (Cloudflare Workers)
+.dev.vars.*
 .netlify
 .wrangler/
 .dev.vars
@@ -110,3 +110,6 @@ next-env.d.ts
 
 # Taste Skill inspector output
 /.taste-skill/
+/dist/
+.vinext/
+.cloudflare/

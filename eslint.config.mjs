@@ -14,6 +14,10 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Vendored pdf.js worker (minified third-party code)
     "public/pdf.worker.min.mjs",
+    // Cloudflare Workers build output (generated)
+    ".cloudflare/**",
+    ".vinext/**",
+    "dist/**",
   ]),
 ]);
 

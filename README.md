@@ -9,11 +9,11 @@
 
 *Every charge questioned. Every dispute supported.*
 
-**Live:** _coming soon (deploying to Vercel)_
+**Live:** _coming soon (deploying to Cloudflare Workers)_
 
 [![GitHub Stars](https://img.shields.io/github/stars/mdharishsuhaib/Quibillix?style=flat-square&logo=github&color=1f6feb&label=stars)](https://github.com/mdharishsuhaib/Quibillix/stargazers) [![GitHub Forks](https://img.shields.io/github/forks/mdharishsuhaib/Quibillix?style=flat-square&logo=github&color=f0883e&label=forks)](https://github.com/mdharishsuhaib/Quibillix/network/members)
 
-[![Next.js](https://img.shields.io/badge/Framework-Next.js_16-000000?style=flat-square&logo=nextdotjs&logoColor=white)](https://nextjs.org/) [![React](https://img.shields.io/badge/UI-React_19-149ECA?style=flat-square&logo=react&logoColor=white)](https://react.dev/) [![TypeScript](https://img.shields.io/badge/Language-TypeScript_5-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![Tailwind CSS](https://img.shields.io/badge/Styling-Tailwind_CSS_4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/) [![NVIDIA Nemotron](https://img.shields.io/badge/Models-NVIDIA_Nemotron-76B900?style=flat-square&logo=nvidia&logoColor=white)](https://build.nvidia.com/) [![Vercel](https://img.shields.io/badge/Hosting-Vercel-000000?style=flat-square&logo=vercel&logoColor=white)](https://vercel.com/)
+[![Next.js](https://img.shields.io/badge/Framework-Next.js_16-000000?style=flat-square&logo=nextdotjs&logoColor=white)](https://nextjs.org/) [![React](https://img.shields.io/badge/UI-React_19-149ECA?style=flat-square&logo=react&logoColor=white)](https://react.dev/) [![TypeScript](https://img.shields.io/badge/Language-TypeScript_5-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![Tailwind CSS](https://img.shields.io/badge/Styling-Tailwind_CSS_4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/) [![NVIDIA Nemotron](https://img.shields.io/badge/Models-NVIDIA_Nemotron-76B900?style=flat-square&logo=nvidia&logoColor=white)](https://build.nvidia.com/) [![Cloudflare Workers](https://img.shields.io/badge/Hosting-Cloudflare_Workers-F38020?style=flat-square&logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
 </div>
 
 ---
@@ -125,7 +125,7 @@ flowchart TD
         Store[("localStorage<br/>cases + theme")]
     end
 
-    subgraph Server["Next.js API routes (Vercel)"]
+    subgraph Server["Next.js API routes (Cloudflare Workers)"]
         Audit["/api/audit<br/>streams NDJSON events"]
         Letter["/api/letter<br/>letter from approved items"]
         Health["/api/health<br/>live provider status"]
@@ -262,6 +262,10 @@ Quibillix/
 │   └── make-sample-pdf.py       # Builds public/samples/utility-bill.pdf
 ├── .githooks/pre-commit         # Runs check-secrets before every commit
 ├── .env.example                 # Every setting documented (no values)
+├── cloudflare.config.ts         # Cloudflare Worker settings (name, compatibility, assets)
+├── vite.config.ts               # vinext build for Cloudflare Workers
+├── postcss.config.mjs           # Tailwind CSS for the Vite build
+├── .node-version                # Node 24 for Cloudflare builds
 ├── Logo.png                     # Source logo (run scripts/make-icons.py after changing it)
 ├── DESIGN.md                    # Colour, type and motion system
 ├── LICENSE                      # MIT
@@ -272,7 +276,7 @@ Quibillix/
 
 ## Prerequisites
 
-- **Node.js 20.9+** and `npm` (tested on Node 22).
+- **Node.js 22.23+** and `npm` (Node 24 LTS recommended; the Cloudflare deploy tools need it).
 - At least one NVIDIA Nemotron key: [Nebius Token Factory](https://tokenfactory.nebius.com)
   (primary) and/or [NVIDIA Build](https://build.nvidia.com) (fallback). Using both gives
   automatic failover.
@@ -468,8 +472,9 @@ browser's site data deletes all cases.
   request at 40 findings, and images must be `data:image/` URLs.
 - **Rate limiting per visitor** -- `RATE_LIMIT_PER_HOUR` audits per IP (HTTP `429` beyond that),
   so a public demo cannot drain API credits.
-- **Secrets stay out of git** -- API keys live only in `.env.local` locally and in the Vercel
-  environment settings. `.gitignore` excludes every `.env` variant, keys, certificates,
+- **Secrets stay out of git** -- API keys live only in `.env.local` locally and as encrypted
+  Secrets in the Cloudflare Worker settings. `.gitignore` excludes every `.env` variant,
+  `.dev.vars`, keys, certificates,
   credentials and CLI token folders. `npm run check-secrets` scans every committable file for
   key patterns and for the real values in `.env.local`, and the pre-commit hook blocks any
   commit that fails it.
@@ -485,7 +490,8 @@ browser's site data deletes all cases.
 | Photo size sent | Longest side 1,800 px, JPEG 85% | `src/components/AuditApp.tsx` |
 | PDF pages read | 4 (text), 2 (scanned, rendered as one image) | `src/lib/pdf.ts` |
 | Audits per IP | 20 per hour (configurable) | `RATE_LIMIT_PER_HOUR` |
-| Audit request duration | 300 s max | `maxDuration` in `/api/audit` and `/api/letter` |
+| Audit request duration | No wall-clock limit on Cloudflare Workers while the stream is open; 300 s on Node hosts | `maxDuration` in `/api/audit` and `/api/letter` |
+| Worker CPU time | 10 ms per request on the Workers Free plan, 30 s on Workers Paid (waiting on model and search APIs does not count) | Cloudflare plan |
 | Model timeouts | fast 60 s, mid 90 s, vision 90 s, deep 120 s | `LLM_TIMEOUT_<TIER>_MS` |
 | Retries per model call | 1 (on 429, 5xx, timeout or network error) | `src/lib/llm.ts` |
 | Search timeout | 25 s per query | `TAVILY_TIMEOUT_MS`, `OLLAMA_TIMEOUT_MS` |
@@ -500,23 +506,37 @@ browser's site data deletes all cases.
 
 ## Deployment
 
-**Live setup:** the whole app (UI and API routes) runs as one project on **Vercel**. There is
-no separate backend or database to deploy.
+**Live setup:** the whole app (UI and API routes) runs as one **Cloudflare Worker**, built with
+[vinext](https://github.com/cloudflare/vinext) (Cloudflare's Vite-based Next.js runtime). There
+is no separate backend or database to deploy. Worker settings live in `cloudflare.config.ts`
+and the build in `vite.config.ts`.
 
-### Vercel
+> **Workers, not Pages.** Quibillix has server API routes that stream results, so it needs a
+> Worker. Cloudflare Pages is only for static sites, and Cloudflare now recommends Workers for
+> all new full-stack apps.
 
-1. Push this repository to GitHub, then sign in at [vercel.com](https://vercel.com) with GitHub.
-2. **Add New > Project**, pick the repository. Vercel detects Next.js; keep the default build
-   (`next build`) and output settings.
-3. Under **Settings > Environment Variables**, add `NEBIUS_API_KEY`, `NVIDIA_API_KEY`,
-   `TAVILY_API_KEY` and `OLLAMA_API_KEY`, plus any `MODEL_*` / `NVIDIA_MODEL_*` overrides from
-   `.env.example`.
-4. Deploy. `/api/audit` streams NDJSON and sets `maxDuration = 300`.
-5. Check `https://<your-app>.vercel.app/api/health`; it should return `"status":"ok"`.
-6. Run `npm run smoke -- https://<your-app>.vercel.app`, then add the `/api/health` URL to a free
-   uptime monitor (for example UptimeRobot, every 5 minutes).
+### Cloudflare Workers
 
-The project redeploys automatically on every push to the main branch.
+**Needs Node.js 22.23 or newer** (Node 24 LTS recommended) and a free Cloudflare account.
+
+1. Install dependencies: `npm install`
+2. Deploy: `npm run deploy`. The first time, a browser opens so you can sign in to Cloudflare.
+   It builds the app and prints your live URL: `https://quibillix.<your-subdomain>.workers.dev`.
+3. Add your API keys as encrypted secrets. In the [Cloudflare dashboard](https://dash.cloudflare.com),
+   go to **Workers & Pages > quibillix > Settings > Variables and Secrets > Add**. Choose type
+   **Secret** for each of `NEBIUS_API_KEY`, `NVIDIA_API_KEY`, `TAVILY_API_KEY`,
+   `TAVILY_API_KEY_2` and `OLLAMA_API_KEY`, and add any `MODEL_*` / `NVIDIA_MODEL_*` overrides
+   from `.env.example` as type **Text**. Click **Deploy** to apply.
+4. Check `https://quibillix.<your-subdomain>.workers.dev/api/health`; it should return `"status":"ok"`.
+5. Run `npm run smoke -- https://quibillix.<your-subdomain>.workers.dev`, then add the
+   `/api/health` URL to a free uptime monitor (for example UptimeRobot, every 5 minutes).
+
+To ship changes later, run `npm run deploy` again. For automatic deploys on every push, open
+the Worker in the dashboard: **Settings > Build > Connect** to your GitHub repository, with
+build command `npm run build:vinext` and deploy command `npx vinext-cloudflare deploy`.
+
+Local preview of the real Worker: copy `.env.local` to `.dev.vars` (git-ignored), then run
+`npm run build:vinext` and `npm run start:vinext`.
 
 ### Other options
 
@@ -563,9 +583,9 @@ npm run check-models
 
 ### "Server has no model provider configured"
 
-Neither `NEBIUS_API_KEY` nor `NVIDIA_API_KEY` is set. Add at least one to `.env.local` (or to the
-Vercel environment variables) and restart `npm run dev`. Environment changes are read only when
-the server starts.
+Neither `NEBIUS_API_KEY` nor `NVIDIA_API_KEY` is set. Add at least one to `.env.local` (or as a
+Secret in the Cloudflare Worker settings, then redeploy) and restart `npm run dev`. Environment
+changes are read only when the server starts.
 
 ### A model shows as `MISSING` in `npm run check-models`
 
@@ -613,6 +633,15 @@ Or start on another port: `npx next dev -p 3100`.
 The pre-commit hook found an API key in a staged or committable file. Move it into `.env.local`
 (git-ignored), then commit again. Run `npm run check-secrets` to see the file and the key name.
 
+### Cloudflare deploy problems
+
+| Problem | Fix |
+|---|---|
+| `Unknown file extension ".ts"` for `cloudflare.config.ts` | Node is older than 22.23; install Node 24 LTS from [nodejs.org](https://nodejs.org) |
+| Live site's `/api/health` says a key is "not set" | Add it under **Workers & Pages > quibillix > Settings > Variables and Secrets** as type **Secret**, then click **Deploy** |
+| Audit stops with "Worker exceeded CPU time limit" | Free plan CPU limit; upgrade to Workers Paid ($5/month, 30 s CPU) |
+| `npm run deploy` asks you to log in again | Run `npx cf auth login`, then deploy again |
+
 ### Other common issues
 
 | Problem | Fix |
@@ -658,7 +687,7 @@ main one fails.
 Next.js 16 · React 19 · TypeScript 5 · Tailwind CSS 4 · PDF.js (`pdfjs-dist`) ·
 NVIDIA Nemotron (Nano, Super, Super VL, Ultra) · Nebius Token Factory · NVIDIA Build ·
 Tavily Search · Ollama web search · NDJSON streaming · Browser localStorage · tsx ·
-ESLint · Vercel
+ESLint · Vite · vinext · Cloudflare Workers
 
 ---
 

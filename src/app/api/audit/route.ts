@@ -32,7 +32,11 @@ export async function POST(req: Request) {
   if (!hasModelProvider()) {
     return Response.json({ error: "Server has no model provider configured (NEBIUS_API_KEY or NVIDIA_API_KEY)" }, { status: 500 });
   }
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "local";
+  // Cloudflare sends the visitor IP as cf-connecting-ip; other hosts use x-forwarded-for.
+  const ip =
+    req.headers.get("cf-connecting-ip") ||
+    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+    "local";
   if (rateLimited(ip)) {
     return Response.json({ error: "Rate limit reached — please try again in a bit." }, { status: 429 });
   }
