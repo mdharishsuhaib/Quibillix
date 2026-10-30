@@ -9,7 +9,7 @@
 
 *Every charge questioned. Every dispute supported.*
 
-**Live:** _coming soon (deploying to Cloudflare Workers)_
+**Live:** [quibillix.mdharishsuhaib.workers.dev](https://quibillix.mdharishsuhaib.workers.dev)
 
 [![GitHub Stars](https://img.shields.io/github/stars/mdharishsuhaib/Quibillix?style=flat-square&logo=github&color=1f6feb&label=stars)](https://github.com/mdharishsuhaib/Quibillix/stargazers) [![GitHub Forks](https://img.shields.io/github/forks/mdharishsuhaib/Quibillix?style=flat-square&logo=github&color=f0883e&label=forks)](https://github.com/mdharishsuhaib/Quibillix/network/members)
 
