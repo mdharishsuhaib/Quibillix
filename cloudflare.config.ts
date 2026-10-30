@@ -14,7 +14,6 @@ export default defineConfig({
     },
     env: {
       ASSETS: bindings.assets(),
-      IMAGES: bindings.images(),
       // API keys are NOT declared here on purpose: add them as encrypted Secrets in the
       // Cloudflare dashboard (Worker -> Settings -> Variables and Secrets). With nodejs_compat
       // they appear on process.env automatically, and a missing optional key never blocks a deploy.
