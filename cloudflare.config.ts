@@ -4,8 +4,9 @@ export default defineConfig({
   worker: defineWorker({
     name: "quibillix",
     entrypoint: "vinext/server/fetch-handler",
-    compatibilityDate: "2026-10-30",
-    compatibilityFlags: ["nodejs_compat"],
+    compatibilityDate: "2026-10-23",
+    compatibilityFlags: ["nodejs_compat", "global_fetch_strictly_public"],
+    observability: { enabled: true, logs: { enabled: true } },
     assets: {
       htmlHandling: "none",
       notFoundHandling: "none",
