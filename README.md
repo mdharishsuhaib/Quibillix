@@ -5,21 +5,22 @@
 
 # Quibillix
 
-**Quibillix: AI-Powered Bill Verification and Dispute Agent**
+**Quibillix: Bill Verification & Dispute Agent**
+
+*Every charge questioned. Every dispute supported.*
 
 **Live:** _coming soon (deploying to Vercel)_
 
 [![GitHub Stars](https://img.shields.io/github/stars/mdharishsuhaib/Quibillix?style=flat-square&logo=github&color=1f6feb&label=stars)](https://github.com/mdharishsuhaib/Quibillix/stargazers) [![GitHub Forks](https://img.shields.io/github/forks/mdharishsuhaib/Quibillix?style=flat-square&logo=github&color=f0883e&label=forks)](https://github.com/mdharishsuhaib/Quibillix/network/members)
 
-[![Next.js](https://img.shields.io/badge/Framework-Next.js_16-000000?style=flat-square&logo=nextdotjs&logoColor=white)](https://nextjs.org/) [![React](https://img.shields.io/badge/UI-React_19-149ECA?style=flat-square&logo=react&logoColor=white)](https://react.dev/) [![TypeScript](https://img.shields.io/badge/Language-TypeScript_5-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![Tailwind CSS](https://img.shields.io/badge/Styling-Tailwind_CSS_4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/) [![NVIDIA Nemotron](https://img.shields.io/badge/Models-NVIDIA_Nemotron-76B900?style=flat-square&logo=nvidia&logoColor=white)](https://build.nvidia.com/) [![Nebius Token Factory](https://img.shields.io/badge/Inference-Nebius_Token_Factory-052B4F?style=flat-square)](https://tokenfactory.nebius.com/) [![Tavily](https://img.shields.io/badge/Research-Tavily-5B4CDB?style=flat-square)](https://tavily.com/) [![Ollama](https://img.shields.io/badge/Research_Fallback-Ollama_Web_Search-000000?style=flat-square&logo=ollama&logoColor=white)](https://ollama.com/) [![Vercel](https://img.shields.io/badge/Hosting-Vercel-000000?style=flat-square&logo=vercel&logoColor=white)](https://vercel.com/) [![License: MIT](https://img.shields.io/badge/License-MIT-3B4D5E?style=flat-square)](./LICENSE)
-
+[![Next.js](https://img.shields.io/badge/Framework-Next.js_16-000000?style=flat-square&logo=nextdotjs&logoColor=white)](https://nextjs.org/) [![React](https://img.shields.io/badge/UI-React_19-149ECA?style=flat-square&logo=react&logoColor=white)](https://react.dev/) [![TypeScript](https://img.shields.io/badge/Language-TypeScript_5-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![Tailwind CSS](https://img.shields.io/badge/Styling-Tailwind_CSS_4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/) [![NVIDIA Nemotron](https://img.shields.io/badge/Models-NVIDIA_Nemotron-76B900?style=flat-square&logo=nvidia&logoColor=white)](https://build.nvidia.com/) [![Vercel](https://img.shields.io/badge/Hosting-Vercel-000000?style=flat-square&logo=vercel&logoColor=white)](https://vercel.com/)
 </div>
 
 ---
 
 ## About the Project
 
-*Quibble + bill + x: every charge questioned, every dispute supported.*
+*Quibble + bill + x: a billing advocate that questions every charge.*
 
 Quibillix is an AI-powered bill verification and dispute agent for anyone who has been handed
 a bill they cannot check: **patients and families** facing medical or hospital bills full of
@@ -38,7 +39,6 @@ you can track the case through to the money you actually recover.
 - [Overview](#overview)
 - [Key Features](#key-features)
 - [System Architecture](#system-architecture)
-- [How the Scoring Works](#how-the-scoring-works)
 - [Repository Structure](#repository-structure)
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
@@ -171,70 +171,46 @@ flowchart TD
   OpenAI-compatible endpoint. If Nebius Token Factory fails, the same call goes to NVIDIA Build.
 - **No database** -- Bills are processed in memory. Cases live in the user's browser only.
 
----
+### Project Pipeline
 
-## How the Scoring Works
+Every audit runs the same six steps in `runAudit` (`src/lib/pipeline.ts`). Each step is streamed
+to the browser as it starts and finishes, with the model or engine that answered it.
 
-### Certainty levels
+```mermaid
+flowchart LR
+    A["1. Read the bill<br/>extract"] --> B["2. Hard checks<br/>rules"]
+    B --> C["3. Plan research<br/>triage"]
+    C --> D["4. Live research<br/>research"]
+    D --> E["5. Deep audit<br/>audit"]
+    E --> F["6. Write dispute<br/>letter"]
+    F --> G["You approve<br/>each finding"]
+    G -- "/api/letter" --> H["Letter rewritten<br/>for approved items"]
+    H --> I["Case tracker<br/>Draft to Resolved"]
+```
 
-| Certainty | What it means | Who can assign it | Money claimed |
-|---|---|---|---|
-| **Confirmed error** | Provable from the bill's own numbers | Deterministic code only (`rules.ts`) | Yes |
-| **Suspected overcharge** | Backed by a cited benchmark, rule or the user's own account; the provider must justify or reduce it | AI audit, after the price gate | Yes |
-| **Needs info** | Cannot be judged without itemization or records | AI audit, or a downgraded weak claim | No |
+| # | Step (event id) | What happens | Model or engine (fallback) | Output |
+|---|---|---|---|---|
+| 1 | Read the bill (`extract`) | Turns the photo, PDF text or pasted text into structured line items: codes, dates, quantities, prices, stated totals, stay or billing period | Photo: Nemotron 3.5 Super VL. Text: Nemotron Nano (falls back to Super) | `bill` event |
+| 2 | Hard checks (`rules`) | Runs the 8 deterministic checks (math, duplicates, subtotal, total due, fees, stay days, billing-period days, tax on healthcare) | No model: TypeScript code | **Confirmed** findings |
+| 3 | Plan research (`triage`) | Picks the 3 to 4 charges most likely to be wrong and writes one search query each. Queries then pass through `redactQuery` | Nemotron Super (falls back to Nano) | Search queries |
+| 4 | Live research (`research`) | Runs every query in parallel | Tavily key 1, then Tavily key 2, then Ollama web search, per query | `evidence` event with sources |
+| 5 | Deep audit (`audit`) | Looks for upcoding, unbundling, price outliers, balance billing and services not received, citing only retrieved sources. `gatePriceOutliers` then downgrades weak price claims, findings are merged with the rule results, and totals are capped per line | Nemotron 3 Ultra (falls back to Super) | **Suspected** and **needs info** findings, totals by certainty |
+| 6 | Write dispute (`letter`) | Drafts a dispute letter and phone script for every finding except "needs info" | Nemotron Super (falls back to Nano) | Letter and phone script |
 
-### Deterministic checks (`src/lib/rules.ts`)
+**After the run:**
 
-| # | Check | What it catches |
-|---|---|---|
-| 1 | Line math | Quantity x unit price does not equal the line amount |
-| 2 | Duplicates | Same code or description, same date, same amount |
-| 3 | Subtotal | Stated subtotal is higher than the sum of the line items |
-| 4 | Total due | Balance does not reconcile with subtotal minus adjustments and payments |
-| 5 | Discretionary fees | Late-payment, penalty, admin, convenience and paper-bill fees that are often waived |
-| 6 | Stay days | Per-day charges billed for more days than the inpatient stay (discharge day excluded) |
-| 7 | Billing-period days | Standing charges or daily rentals billed for more days than the period |
-| 8 | Tax on healthcare | GST or sales tax on exempt clinical services (India: non-ICU rooms above ₹5,000/day are the exception) |
+- **Human review:** you switch each finding on or off. If the selection changes, **Rewrite to
+  match** sends only the approved findings to `/api/letter`, which rewrites the letter.
+- **Case tracking:** the case is saved in your browser with an audit trail of every agent step and
+  every decision you make, through Draft, Sent, Responded and Resolved, plus the amount recovered.
 
-### Model routing
+**When something fails:**
 
-| Step | Tier | Nebius Token Factory model | Why this model |
-|---|---|---|---|
-| Bill photo to JSON | vision | `nvidia/Nemotron-3.5-Super-VL` | Reads document images, tables and small print |
-| Bill text to JSON | fast | `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` | Fast and cheap for structured extraction |
-| Research plan, letter, phone script | mid | `nvidia/nemotron-3-super-120b-a12b` | Good writing and planning at mid cost |
-| Deep audit | deep | `nvidia/Nemotron-3-Ultra-550b-a55b` | Multi-step reasoning over codes, law and evidence |
-
-A full audit is about 5 model calls, and most tokens go through Nano or Super. If a whole tier
-fails, the step drops to the next one (Ultra to Super, Nano to Super). The NVIDIA Build fallback
-uses the matching `NVIDIA_MODEL_*` IDs from `.env.example`.
-
-### Measured accuracy (21-bill benchmark)
-`npm run eval` runs a labelled benchmark of **21 bills** (`eval/cases.ts`, `eval/cases-more.ts`)
-across US, UK and India: medical, hospital, utility, telecom and B2B invoices. It has **25 planted
-errors** and **5 clean control bills** that must come back clean. A planted error only counts if a
-money-bearing finding sits on the right line with an accepted issue type. Results are written to
-`eval/results.json`.
-
-| Metric | Result (latest run: 21 bills, NVIDIA Build endpoint) |
-|---|---|
-| Planted errors caught (recall) | **24 / 25 (96%)** |
-| Precision on labelled lines | **27 / 29 (93%)** |
-| Clean control bills | **5 / 5 came back clean** |
-| False positives on known-legit lines | 2 (both "possibly bundled" supply items) |
-| Arithmetic correctness (claimed vs true amount) | **6 / 6 (100%)** |
-| Citations that are real retrieved URLs | **57 / 57 (100%)** |
-| AI findings with at least one citation | 16 / 18 (89%) |
-| Dispute letters covering every disputed item | **16 / 16 (100%)** |
-| Pipeline errors | 0 |
-| Time | avg **42 s**, median 38 s per bill (15 min total vs about **15 h** by hand) |
-
-The one miss: on a utility bill with an *estimated* meter reading, Quibillix flagged the fees but
-did not recompute usage from the actual reading the user supplied.
-
-On the three bundled samples (US ER visit, Indian hospital stay, mobile and broadband bill) it
-catches the duplicate X-ray, an upcoded ER level, No Surprises Act balance billing, an ICU charge
-with no ICU stay, extra room-days, GST on exempt healthcare, cramming add-ons and junk fees.
+- If no search key is set, steps 3 and 4 are skipped and price findings are marked lower confidence.
+- If the letter step fails, the findings are kept and **Write the letter** retries it.
+- If a whole model tier is down, the step moves to the fallback tier. If Nebius Token Factory is
+  down, every call goes to NVIDIA Build.
+- If no line items are found, the run stops with "Couldn't find any line items on this bill".
 
 ---
 
@@ -271,7 +247,7 @@ Quibillix/
 │       ├── samples.ts           # The three bundled sample bills
 │       └── types.ts             # Shared types and stream events
 ├── public/
-│   ├── logo.png, logo-icon.png  # Full logo and app icon
+│   ├── logo-icon.png            # App logo (header, README), built from Logo.png
 │   ├── pdf.worker.min.mjs       # PDF.js worker (required for PDF upload)
 │   └── samples/                 # india-hospital-bill.png, utility-bill.pdf
 ├── eval/                        # 21-bill benchmark: cases, runner, results.json
@@ -286,7 +262,7 @@ Quibillix/
 │   └── make-sample-pdf.py       # Builds public/samples/utility-bill.pdf
 ├── .githooks/pre-commit         # Runs check-secrets before every commit
 ├── .env.example                 # Every setting documented (no values)
-├── Logo.png                     # Source logo
+├── Logo.png                     # Source logo (run scripts/make-icons.py after changing it)
 ├── DESIGN.md                    # Colour, type and motion system
 ├── LICENSE                      # MIT
 └── README.md
@@ -686,8 +662,4 @@ ESLint · Vercel
 
 ---
 
-<div align="center">
-
-**Quibillix © 2026** -- every charge questioned, every dispute supported.
-
-</div>
+<p align="center"><strong>Quibillix © 2026</strong></p>

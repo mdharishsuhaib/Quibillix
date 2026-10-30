@@ -17,7 +17,7 @@ export default function Home() {
       <header className="no-print mb-8 flex items-center justify-between gap-4">
         <a href="#top" className="flex items-center gap-3" aria-label="Quibillix home">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-icon.png" alt="" width={36} height={36} className="h-9 w-9" />
+          <img src="/logo-icon.png?v=2" alt="" width={36} height={36} className="h-9 w-9" />
           <span className="text-[17px] font-semibold leading-none text-frost">Quibillix</span>
         </a>
         <ThemeToggle />

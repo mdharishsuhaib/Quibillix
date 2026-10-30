@@ -17,9 +17,9 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Quibillix: bill verification and dispute agent",
+  title: "Quibillix: Bill Verification & Dispute Agent",
   description:
-    "Find overcharges in medical, hospital, telecom and utility bills and get a ready-to-send dispute letter. Powered by NVIDIA Nemotron on Nebius Token Factory.",
+    "Every charge questioned. Every dispute supported. Quibillix finds overcharges in medical, hospital, telecom and utility bills and drafts a ready-to-send dispute letter. Powered by NVIDIA Nemotron on Nebius Token Factory.",
 };
 
 export const viewport: Viewport = { themeColor: "#E9ECE4", colorScheme: "light dark" };
