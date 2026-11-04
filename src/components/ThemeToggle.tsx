@@ -16,13 +16,15 @@ export function setTheme(t: Theme) {
   if (t === "dark") document.documentElement.dataset.theme = "dark";
   else delete document.documentElement.dataset.theme;
   try {
-    localStorage.setItem(THEME_KEY, t);
+    // sessionStorage: survives reloads, cleared when the tab or browser is closed,
+    // so every new visit starts in light mode.
+    sessionStorage.setItem(THEME_KEY, t);
   } catch {
     /* storage blocked: the choice just won't persist */
   }
 }
 
-/** Light is the default; this switches to dark and back, and remembers the choice in this browser. */
+/** Light is the default; this switches to dark and back, and keeps the choice until the tab is closed. */
 export default function ThemeToggle() {
   const theme = useSyncExternalStore(subscribe, read, () => "light" as Theme);
   const dark = theme === "dark";

@@ -24,8 +24,9 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: "#E9ECE4", colorScheme: "light dark" };
 
-// Light is the default. If the user picked dark before, apply it before first paint so there's no flash.
-const THEME_BOOT = `try{if(localStorage.getItem("quibillix-theme")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}`;
+// Light is the default on every new visit. If the user picked dark earlier in this tab session,
+// apply it before first paint (no flash on reload). The old permanent setting is cleared.
+const THEME_BOOT = `try{localStorage.removeItem("quibillix-theme");if(sessionStorage.getItem("quibillix-theme")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

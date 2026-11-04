@@ -122,7 +122,8 @@ flowchart TD
     subgraph Client["Browser"]
         UI["Next.js 16 UI<br/>upload, live pipeline, results, cases"]
         PDF["pdf.ts<br/>PDF text layer or scan to image"]
-        Store[("localStorage<br/>cases + theme")]
+        Store[("localStorage<br/>cases")]
+        Session[("sessionStorage<br/>theme")]
     end
 
     subgraph Server["Next.js API routes (Cloudflare Workers)"]
@@ -161,6 +162,7 @@ flowchart TD
     Search -. "if both keys fail" .-> Ollama
     Audit -- "step, bill, findings, evidence, result" --> UI
     UI --> Store
+    UI --> Session
 ```
 
 - **Frontend** -- Next.js 16 (App Router) + React 19 + TypeScript + Tailwind CSS 4. PDFs are
@@ -376,9 +378,10 @@ Open `http://localhost:3000`. The UI calls the API routes on the same address, s
 backend URL or CORS to configure. For a production build, run `npm run build`, then
 `npm start`.
 
-PDF reading uses `public/pdf.worker.min.mjs`, which must stay in `public/`. The theme (light by
-default) is set before the first paint by a small script in `src/app/layout.tsx`, so the page
-never flashes the wrong colours.
+PDF reading uses `public/pdf.worker.min.mjs`, which must stay in `public/`. Every new visit opens
+in light mode. A dark mode choice is kept across reloads in the same tab and is cleared when the
+tab is closed. A small script in `src/app/layout.tsx` applies it before the first paint, so the
+page never flashes the wrong colours.
 
 ---
 
@@ -447,7 +450,7 @@ sees only their own cases.
 |---|---|
 | `quibillix.cases.v1` | Up to 50 dispute cases: `id` (`QB-...`), `createdAt`, `provider`, `currency`, `totalBilled`, `confirmedTotal`, `suspectedTotal`, `approvedTotal`, `approvedIds`, `status` (`draft`, `sent`, `responded`, `resolved`), `recovered`, `durationMs`, `findingsCount`, `result` (full audit), `letter`, `trail` |
 | `trail[]` (inside each case) | Audit trail events: `at` (ISO timestamp), `actor` (`agent` or `user`), `action`, `detail` |
-| `quibillix-theme` | `light` (default) or `dark` |
+| `quibillix-theme` (`sessionStorage`) | `light` (default) or `dark`; kept across reloads, cleared when the tab is closed so every new visit opens in light mode |
 | Server memory (not persisted) | Rate limiter: request timestamps per visitor IP for the last hour, reset on restart |
 
 Every agent step and every human decision (approve, reject, status change, amount recovered) is
