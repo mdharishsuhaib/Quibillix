@@ -5,7 +5,7 @@ export default defineConfig({
     name: "quibillix",
     entrypoint: "vinext/server/fetch-handler",
     compatibilityDate: "2026-10-23",
-    compatibilityFlags: ["nodejs_compat", "global_fetch_strictly_public"],
+    compatibilityFlags: ["global_fetch_strictly_public", "nodejs_compat"],
     observability: { enabled: true, logs: { enabled: true } },
     assets: {
       htmlHandling: "none",
